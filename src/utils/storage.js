@@ -185,25 +185,129 @@ export const exportToCsv = (filename, rows) => {
   URL.revokeObjectURL(url);
 };
 
-// Parseur CSV pour importation d'articles
-export const parseProductsCsv = (csvText) => {
-  const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
+// Export CSV des produits
+export const exportProductsToCSV = (products) => {
+  const headers = ['Nom', 'Categorie', 'Prix de vente (FCFA)', 'Prix d\'achat (FCFA)', 'Stock', 'Seuil alerte', 'Code-barre'];
+  const rows = products.map(p => [
+    `"${(p.name || '').replace(/"/g, '""')}"`,
+    `"${(p.category || '').replace(/"/g, '""')}"`,
+    p.salePrice || 0,
+    p.purchasePrice || 0,
+    p.stock || 0,
+    p.lowStockThreshold || 2,
+    `"${(p.barcode || '').replace(/"/g, '""')}"`
+  ]);
+
+  const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `catalogue_stock_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+// Export CSV des ventes
+export const exportSalesToCSV = (sales) => {
+  const headers = ['Date', 'Client', 'Telephone', 'Montant Total (FCFA)', 'Avance Payee (FCFA)', 'Reste Dû (FCFA)', 'Statut', 'Echeance'];
+  const rows = sales.map(s => [
+    `"${s.createdAt || ''}"`,
+    `"${(s.clientName || '').replace(/"/g, '""')}"`,
+    `"${s.clientPhone || ''}"`,
+    s.totalAmount || 0,
+    s.amountPaid !== undefined ? s.amountPaid : (s.advancePaid || 0),
+    s.remainingBalance !== undefined ? s.remainingBalance : (s.remainingDue || 0),
+    `"${s.status || ''}"`,
+    `"${s.dueDate || 'N/A'}"`
+  ]);
+
+  const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `historique_ventes_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+// Export CSV des dépenses
+export const exportExpensesToCSV = (expenses) => {
+  const headers = ['Date', 'Intitule', 'Categorie', 'Montant (FCFA)', 'Moyen de Paiement', 'Note'];
+  const rows = expenses.map(e => [
+    `"${e.date || ''}"`,
+    `"${(e.title || '').replace(/"/g, '""')}"`,
+    `"${(e.category || '').replace(/"/g, '""')}"`,
+    e.amount || 0,
+    `"${e.paymentMethod || 'CASH'}"`,
+    `"${(e.note || '').replace(/"/g, '""')}"`
+  ]);
+
+  const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `rapport_depenses_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+// Export CSV des clôtures de caisse
+export const exportCashClosingsToCSV = (closings) => {
+  const headers = ['Date', 'Heure', 'Ventes Especes', 'Avances Especes', 'Reglements Especes', 'Depenses Especes', 'Total Theorique', 'Caisse Physique', 'Ecart', 'Total Ventes Journee', 'Caissier', 'Note'];
+  const rows = closings.map(c => [
+    `"${c.date || ''}"`,
+    `"${c.closedAt || ''}"`,
+    c.cashSalesTotal || 0,
+    c.cashAdvancesTotal || 0,
+    c.cashPaymentsTotal || 0,
+    c.cashExpensesTotal || 0,
+    c.theoreticalCashTotal || 0,
+    c.physicalCashCounted || 0,
+    c.difference || 0,
+    c.totalDailyRevenue || 0,
+    `"${(c.closedBy || '').replace(/"/g, '""')}"`,
+    `"${(c.note || '').replace(/"/g, '""')}"`
+  ]);
+
+  const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `clotures_caisse_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+// Importation et analyse intelligente de fichier CSV
+export const parseProductsCSV = (csvText) => {
+  const lines = csvText.split(/\r?\n/).filter(line => line.trim().length > 0);
   if (lines.length < 2) return [];
 
-  const separator = lines[0].includes(';') ? ';' : ',';
-  const headers = lines[0].split(separator).map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
+  // Détection du séparateur (; ou ,)
+  const firstLine = lines[0];
+  const separator = firstLine.includes(';') ? ';' : ',';
 
+  const headers = firstLine.split(separator).map(h => h.trim().replace(/^["']|["']$/g, '').toLowerCase());
   const results = [];
+
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(separator).map(v => v.trim().replace(/^["']|["']$/g, ''));
-    if (values.length < 2) continue;
+    const rawLine = lines[i];
+    const values = rawLine.split(separator).map(v => v.trim().replace(/^["']|["']$/g, ''));
+    if (values.length < 2 || !values[0]) continue;
 
     const row = {};
     headers.forEach((h, idx) => {
       row[h] = values[idx] || '';
     });
 
-    // Mappage tolérant des colonnes
     const name = row['nom'] || row['name'] || row['article'] || row['produit'] || values[0];
     if (!name) continue;
 
@@ -215,7 +319,7 @@ export const parseProductsCsv = (csvText) => {
     const barcode = row['code-barre'] || row['barcode'] || row['code'] || `BF-IMP-${Date.now()}-${i}`;
 
     results.push({
-      id: `prod-csv-${Date.now()}-${i}`,
+      id: `prod-user-${Date.now()}-${i}`,
       name,
       category,
       salePrice,
@@ -231,7 +335,9 @@ export const parseProductsCsv = (csvText) => {
   return results;
 };
 
-// Initialisation et lecture du LocalStorage avec valeurs par défaut (Vide par défaut pour nouveaux comptes)
+export const parseProductsCsv = parseProductsCSV;
+
+// Initialisation et lecture du LocalStorage (100% VIERGE PAR DÉFAUT)
 export const loadStoredData = () => {
   const getOrSet = (key, defaultData) => {
     const raw = localStorage.getItem(key);
@@ -246,10 +352,25 @@ export const loadStoredData = () => {
     }
   };
 
+  const rawProducts = getOrSet(STORAGE_KEYS.PRODUCTS, []);
+  const cleanProducts = Array.isArray(rawProducts)
+    ? rawProducts.filter(p => !p.id?.startsWith('prod-') || p.id?.startsWith('prod-csv-') || p.id?.startsWith('prod-user-') || p.id?.startsWith('demo-prod-'))
+    : [];
+
+  const rawSales = getOrSet(STORAGE_KEYS.SALES, []);
+  const cleanSales = Array.isArray(rawSales)
+    ? rawSales.filter(s => !s.id?.startsWith('sale-') || s.id?.startsWith('sale-user-') || s.id?.startsWith('demo-sale-'))
+    : [];
+
+  const rawClients = getOrSet(STORAGE_KEYS.CLIENTS, []);
+  const cleanClients = Array.isArray(rawClients)
+    ? rawClients.filter(c => !c.id?.startsWith('cli-') || c.id?.startsWith('cli-user-') || c.id?.startsWith('demo-cli-'))
+    : [];
+
   return {
-    products: getOrSet(STORAGE_KEYS.PRODUCTS, []),
-    clients: getOrSet(STORAGE_KEYS.CLIENTS, []),
-    sales: getOrSet(STORAGE_KEYS.SALES, []),
+    products: cleanProducts,
+    clients: cleanClients,
+    sales: cleanSales,
     payments: getOrSet(STORAGE_KEYS.PAYMENTS, []),
     waLogs: getOrSet(STORAGE_KEYS.WA_LOGS, []),
     expenses: getOrSet(STORAGE_KEYS.EXPENSES, []),
@@ -285,7 +406,7 @@ export const saveCashClosings = (cashClosings) => saveStoredData(STORAGE_KEYS.CA
 export const saveUserRole = (role) => localStorage.setItem(STORAGE_KEYS.USER_ROLE, role);
 export const saveSecurityPin = (pin) => localStorage.setItem(STORAGE_KEYS.SECURITY_PIN, pin);
 
-// Remise à zéro complète (BDD 100% vide pour nouveau compte)
+// Vider complètement toutes les données du localStorage
 export const emptyAllData = () => {
   localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify([]));
@@ -307,13 +428,13 @@ export const emptyAllData = () => {
 
 // Chargement explicite des données de démonstration
 export const loadDemoData = () => {
-  localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
-  localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
-  localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(INITIAL_SALES));
-  localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(INITIAL_PAYMENTS));
-  localStorage.setItem(STORAGE_KEYS.WA_LOGS, JSON.stringify(INITIAL_WHATSAPP_LOGS));
-  localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(INITIAL_EXPENSES));
-  localStorage.setItem(STORAGE_KEYS.CASH_CLOSINGS, JSON.stringify(INITIAL_CASH_CLOSINGS));
+  localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(DEMO_PRODUCTS));
+  localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(DEMO_CLIENTS));
+  localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(DEMO_SALES));
+  localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(DEMO_PAYMENTS));
+  localStorage.setItem(STORAGE_KEYS.WA_LOGS, JSON.stringify(DEMO_WHATSAPP_LOGS));
+  localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(DEMO_EXPENSES));
+  localStorage.setItem(STORAGE_KEYS.CASH_CLOSINGS, JSON.stringify(DEMO_CASH_CLOSINGS));
   localStorage.setItem(STORAGE_KEYS.STORE_INFO, JSON.stringify({
     name: 'Boutique Élégance Faso',
     ownerName: 'Mme Fatoumata Kaboré',
@@ -321,13 +442,13 @@ export const loadDemoData = () => {
     city: 'Ouagadougou, Burkina Faso'
   }));
   return {
-    products: INITIAL_PRODUCTS,
-    clients: INITIAL_CLIENTS,
-    sales: INITIAL_SALES,
-    payments: INITIAL_PAYMENTS,
-    waLogs: INITIAL_WHATSAPP_LOGS,
-    expenses: INITIAL_EXPENSES,
-    cashClosings: INITIAL_CASH_CLOSINGS,
+    products: DEMO_PRODUCTS,
+    clients: DEMO_CLIENTS,
+    sales: DEMO_SALES,
+    payments: DEMO_PAYMENTS,
+    waLogs: DEMO_WHATSAPP_LOGS,
+    expenses: DEMO_EXPENSES,
+    cashClosings: DEMO_CASH_CLOSINGS,
     storeInfo: {
       name: 'Boutique Élégance Faso',
       ownerName: 'Mme Fatoumata Kaboré',
@@ -339,5 +460,3 @@ export const loadDemoData = () => {
 
 // Alias pour compatibilité
 export const resetToInitialData = loadDemoData;
-
-
