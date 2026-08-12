@@ -9,17 +9,38 @@ import {
 } from '../data/initialData';
 
 const STORAGE_KEYS = {
-  PRODUCTS: 'fasomode_products_v1',
-  CLIENTS: 'fasomode_clients_v1',
-  SALES: 'fasomode_sales_v1',
-  PAYMENTS: 'fasomode_payments_v1',
-  WA_LOGS: 'fasomode_walogs_v1',
-  STORE_INFO: 'fasomode_store_info_v1',
-  EXPENSES: 'fasomode_expenses_v1',
-  CASH_CLOSINGS: 'fasomode_cash_closings_v1',
-  USER_ROLE: 'fasomode_user_role_v1',
-  SECURITY_PIN: 'fasomode_security_pin_v1'
+  PRODUCTS: 'stockflow_v2_clean_products',
+  CLIENTS: 'stockflow_v2_clean_clients',
+  SALES: 'stockflow_v2_clean_sales',
+  PAYMENTS: 'stockflow_v2_clean_payments',
+  WA_LOGS: 'stockflow_v2_clean_walogs',
+  STORE_INFO: 'stockflow_v2_clean_store_info',
+  EXPENSES: 'stockflow_v2_clean_expenses',
+  CASH_CLOSINGS: 'stockflow_v2_clean_cash_closings',
+  USER_ROLE: 'stockflow_v2_clean_user_role',
+  SECURITY_PIN: 'stockflow_v2_clean_security_pin'
 };
+
+// Nettoyage automatique immédiat des anciennes clés de test du navigateur
+if (typeof window !== 'undefined' && window.localStorage) {
+  const legacyKeys = [
+    'fasomode_products_v1',
+    'fasomode_clients_v1',
+    'fasomode_sales_v1',
+    'fasomode_payments_v1',
+    'fasomode_walogs_v1',
+    'fasomode_store_info_v1',
+    'fasomode_expenses_v1',
+    'fasomode_cash_closings_v1',
+    'fasomode_user_role_v1',
+    'fasomode_security_pin_v1'
+  ];
+  legacyKeys.forEach(k => {
+    try {
+      localStorage.removeItem(k);
+    } catch (_) {}
+  });
+}
 
 // Formateur monétaire pour FCFA (Franc CFA)
 export const formatFCFA = (amount) => {

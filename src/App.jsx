@@ -105,10 +105,7 @@ export function App() {
         try {
           const cloudData = await dbService.fetchAllFromCloud();
           if (cloudData) {
-            // Si la base Supabase contient des données (ou si c'est un nouveau projet vide), synchroniser le state
-            if (cloudData.products?.length > 0 || cloudData.sales?.length > 0 || cloudData.clients?.length > 0) {
-              handleCloudDataImported(cloudData);
-            }
+            handleCloudDataImported(cloudData);
           }
         } catch (err) {
           console.warn('[Supabase Init Auto-Fetch] info:', err.message);
