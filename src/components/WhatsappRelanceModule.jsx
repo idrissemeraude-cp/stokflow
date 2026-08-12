@@ -25,7 +25,11 @@ const WhatsappRelanceModule = ({
   onOpenCreditModal 
 }) => {
   // Only credit sales with pending debt (> 0)
-  const creditSales = sales.filter(s => s.paymentType === 'CREDIT' && s.remainingDue > 0);
+  const creditSales = sales.filter(s => {
+    const due = s.remainingDue !== undefined ? s.remainingDue : (s.remainingBalance || 0);
+    const isCredit = s.paymentType === 'CREDIT' || s.paymentType === 'CREDIT_TOTAL' || s.paymentType === 'ADVANCE_PARTIAL' || s.status === 'UNPAID' || s.status === 'PARTIALLY_PAID' || s.status === 'PARTIAL';
+    return isCredit && due > 0;
+  });
 
   // Active filter tab: 'ALL' | 'J-2' | 'JOUR_J' | 'OVERDUE'
   const [activeUrgencyTab, setActiveUrgencyTab] = useState('ALL');
@@ -43,10 +47,11 @@ const WhatsappRelanceModule = ({
   const handleSelectSale = (sale) => {
     setSelectedSale(sale);
     const urgencyInfo = getDebtUrgencyStatus(sale.dueDate);
+    const due = sale.remainingDue !== undefined ? sale.remainingDue : (sale.remainingBalance || 0);
     const generated = generateWhatsappMessage({
       clientName: sale.clientName,
       storeName: storeInfo.name,
-      amountDue: sale.remainingDue,
+      amountDue: due,
       dueDate: sale.dueDate,
       saleDate: sale.createdAt,
       tone: selectedTone,
@@ -82,10 +87,11 @@ const WhatsappRelanceModule = ({
 
   // Trigger 1-Click WhatsApp Direct Send & Log Simulation
   const handleTriggerWhatsapp = (sale) => {
+    const due = sale.remainingDue !== undefined ? sale.remainingDue : (sale.remainingBalance || 0);
     const textToSend = customMessage || generateWhatsappMessage({
       clientName: sale.clientName,
       storeName: storeInfo.name,
-      amountDue: sale.remainingDue,
+      amountDue: due,
       dueDate: sale.dueDate,
       saleDate: sale.createdAt,
       tone: selectedTone,
@@ -233,7 +239,7 @@ const WhatsappRelanceModule = ({
                       <div className="text-right">
                         <span className="text-[10px] text-red-500 font-bold block">Reste dû (Rouge)</span>
                         <span className="font-bold text-sm text-red-500">
-                          {formatFCFA(sale.remainingDue)}
+                          {formatFCFA(sale.remainingDue !== undefined ? sale.remainingDue : (sale.remainingBalance || 0))}
                         </span>
                       </div>
                     </div>
