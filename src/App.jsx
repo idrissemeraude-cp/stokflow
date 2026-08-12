@@ -264,7 +264,17 @@ export function App() {
     setCurrentView('dashboard');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.auth.signOut();
+      } catch (err) {
+        console.warn('Erreur Supabase signOut:', err);
+      }
+    }
+    localStorage.removeItem('stockflow_user');
+    setCurrentUser(null);
     setCurrentView('landing');
   };
 
