@@ -67,12 +67,38 @@ const AnalyticsModule = ({ sales = [], products = [], payments = [], expenses = 
     'Accessoires': '#EC4899'
   };
 
-  // Mock monthly data points for glowing SVG chart
-  const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août'];
-  const revenuePoints = [120, 180, 240, 210, 320, 390, 450, 520];
-  const expensePoints = [80, 110, 150, 130, 200, 240, 280, 310];
+  // Dynamically calculate monthly revenue & expenses
+  const monthNamesFr = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
+  const now = new Date();
+  const currentMonthIdx = now.getMonth();
+  const currentYear = now.getFullYear();
 
-  const maxVal = Math.max(...revenuePoints, ...expensePoints);
+  const dynamicMonths = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(currentYear, currentMonthIdx - 5 + i, 1);
+    const mIdx = d.getMonth();
+    const yr = d.getFullYear();
+    const monthKey = `${yr}-${String(mIdx + 1).padStart(2, '0')}`;
+
+    const monthRev = sales
+      .filter(s => s.createdAt && s.createdAt.startsWith(monthKey))
+      .reduce((acc, s) => acc + (Number(s.totalAmount) || 0), 0);
+
+    const monthExp = expenses
+      .filter(e => e.date && e.date.startsWith(monthKey))
+      .reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
+
+    return {
+      name: monthNamesFr[mIdx],
+      revenue: monthRev,
+      expense: monthExp
+    };
+  });
+
+  const months = dynamicMonths.map(m => m.name);
+  const revenuePoints = dynamicMonths.map(m => m.revenue);
+  const expensePoints = dynamicMonths.map(m => m.expense);
+
+  const maxVal = Math.max(...revenuePoints, ...expensePoints, 10000);
   const width = 600;
   const height = 220;
   const padding = 40;
@@ -80,7 +106,7 @@ const AnalyticsModule = ({ sales = [], products = [], payments = [], expenses = 
   const getSvgCoords = (data) => {
     return data.map((val, idx) => {
       const x = padding + (idx / (data.length - 1)) * (width - 2 * padding);
-      const y = height - padding - (val / maxVal) * (height - 2 * padding);
+      const y = height - padding - (maxVal > 0 ? (val / maxVal) * (height - 2 * padding) : 0);
       return { x, y };
     });
   };

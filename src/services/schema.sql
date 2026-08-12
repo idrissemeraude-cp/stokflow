@@ -132,16 +132,16 @@ CREATE TABLE IF NOT EXISTS public.whatsapp_logs (
 -- 9. TABLE DES PARAMÈTRES DE LA BOUTIQUE
 CREATE TABLE IF NOT EXISTS public.store_info (
     id TEXT PRIMARY KEY DEFAULT 'default_store',
-    name TEXT NOT NULL DEFAULT 'Boutique Élégance Faso',
-    owner_name TEXT DEFAULT 'Mme Fatoumata Kaboré',
-    phone TEXT DEFAULT '+22670001122',
+    name TEXT NOT NULL DEFAULT 'StockFlow Pro',
+    owner_name TEXT DEFAULT 'Gérant',
+    phone TEXT DEFAULT '+22600000000',
     city TEXT DEFAULT 'Ouagadougou, Burkina Faso',
     updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 -- Insertion des paramètres par défaut de la boutique
 INSERT INTO public.store_info (id, name, owner_name, phone, city)
-VALUES ('default_store', 'Boutique Élégance Faso', 'Mme Fatoumata Kaboré', '+22670001122', 'Ouagadougou, Burkina Faso')
+VALUES ('default_store', 'StockFlow Pro', 'Gérant', '+22600000000', 'Ouagadougou, Burkina Faso')
 ON CONFLICT (id) DO NOTHING;
 
 -- ==============================================================================

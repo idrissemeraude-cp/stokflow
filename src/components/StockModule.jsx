@@ -431,8 +431,38 @@ const StockModule = ({
                 })
               ) : (
                 <tr>
-                  <td colSpan="8" className="py-8 text-center text-gray-500 italic">
-                    Aucun article trouvé avec ces critères de recherche.
+                  <td colSpan="8" className="py-12 text-center">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                        <Package className="w-6 h-6" />
+                      </div>
+                      <p className="text-sm font-bold text-gray-800">
+                        {products.length === 0 ? "Votre catalogue de stock est vide" : "Aucun article trouvé"}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {products.length === 0 
+                          ? "Commencez par ajouter vos articles manuellement ou importez directement votre fichier Excel / CSV." 
+                          : "Modifiez vos filtres ou termes de recherche pour afficher les articles."}
+                      </p>
+                      {products.length === 0 && (
+                        <div className="flex items-center justify-center gap-2 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenModal()}
+                            className="btn-magnetic px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow"
+                          >
+                            + Ajouter mon 1er article
+                          </button>
+                          <button
+                            type="button"
+                            onClick={onOpenCsvModal}
+                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all"
+                          >
+                            Importer Excel/CSV
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )}

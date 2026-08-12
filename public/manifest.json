@@ -1,0 +1,19 @@
+{
+  "short_name": "StockFlow",
+  "name": "StockFlow Pro - Caisse & Stock",
+  "description": "Solution de Caisse POS, Gestion de Stock et Relances WhatsApp Intelligentes hors-ligne pour le commerce en Afrique de l'Ouest",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#064E3B",
+  "theme_color": "#064E3B",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "categories": ["business", "finance", "productivity"]
+}

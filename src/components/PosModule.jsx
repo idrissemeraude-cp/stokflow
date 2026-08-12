@@ -220,96 +220,121 @@ const PosModule = ({
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[620px] overflow-y-auto pr-1">
-            {filteredProducts.map((product) => {
-              const inCart = cart.filter(item => item.product.id === product.id);
-              const totalInCartQty = inCart.reduce((sum, i) => sum + i.qty, 0);
-              const isOutOfStock = product.stock <= 0;
+            {filteredProducts.length > 0 ? (
+              filteredProducts.map((product) => {
+                const inCart = cart.filter(item => item.product.id === product.id);
+                const totalInCartQty = inCart.reduce((sum, i) => sum + i.qty, 0);
+                const isOutOfStock = product.stock <= 0;
 
-              return (
-                <div
-                  key={product.id}
-                  className={`p-3 rounded-2rem border transition-all flex flex-col justify-between relative overflow-hidden group ${
-                    isOutOfStock
-                      ? 'bg-gray-100 border-gray-200 opacity-60'
-                      : totalInCartQty > 0
-                      ? 'bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500/30 shadow-md'
-                      : 'bg-white hover:bg-emerald-50/40 border-emerald-100 hover:shadow'
-                  }`}
-                >
-                  {totalInCartQty > 0 && (
-                    <span className="absolute top-2 right-2 bg-[#064E3B] text-emerald-300 text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-md">
-                      {totalInCartQty}
-                    </span>
-                  )}
-
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-sm text-gray-900 line-clamp-2 leading-snug">
-                      {product.name}
-                    </h4>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="inline-block text-[10px] font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100/80">
-                        {product.category}
+                return (
+                  <div
+                    key={product.id}
+                    className={`p-3 rounded-2rem border transition-all flex flex-col justify-between relative overflow-hidden group ${
+                      isOutOfStock
+                        ? 'bg-gray-100 border-gray-200 opacity-60'
+                        : totalInCartQty > 0
+                        ? 'bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500/30 shadow-md'
+                        : 'bg-white hover:bg-emerald-50/40 border-emerald-100 hover:shadow'
+                    }`}
+                  >
+                    {totalInCartQty > 0 && (
+                      <span className="absolute top-2 right-2 bg-[#064E3B] text-emerald-300 text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-md">
+                        {totalInCartQty}
                       </span>
-                      {product.barcode && (
-                        <span className="text-[9px] font-mono text-gray-400">
-                          {product.barcode}
+                    )}
+
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-sm text-gray-900 line-clamp-2 leading-snug">
+                        {product.name}
+                      </h4>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-block text-[10px] font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100/80">
+                          {product.category}
+                        </span>
+                        {product.barcode && (
+                          <span className="text-[9px] font-mono text-gray-400">
+                            {product.barcode}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Variants Quick Select Buttons */}
+                    {product.variants && product.variants.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-gray-100/80">
+                        <span className="text-[10px] text-gray-400 font-semibold block mb-1">
+                          Variante / Taille :
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {product.variants.map((v) => (
+                            <button
+                              key={v}
+                              type="button"
+                              disabled={isOutOfStock}
+                              onClick={() => handleAddToCart(product, v)}
+                              className="px-2 py-0.5 rounded-lg bg-gray-100 hover:bg-emerald-600 hover:text-white text-gray-700 text-[10px] font-bold transition-colors"
+                            >
+                              + {v}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pt-2 mt-2 border-t border-gray-100 flex items-center justify-between">
+                      <span className="font-bold text-xs text-emerald-700 font-mono">
+                        {formatFCFA(product.salePrice)}
+                      </span>
+                      
+                      {!product.variants || product.variants.length === 0 ? (
+                        <button
+                          type="button"
+                          disabled={isOutOfStock}
+                          onClick={() => handleAddToCart(product)}
+                          className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center space-x-1 ${
+                            isOutOfStock
+                              ? 'bg-red-100 text-red-600 cursor-not-allowed'
+                              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                          }`}
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>Ajouter</span>
+                        </button>
+                      ) : (
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          isOutOfStock ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {isOutOfStock ? 'Rupture' : `Stock: ${product.stock}`}
                         </span>
                       )}
                     </div>
                   </div>
-
-                  {/* Variants Quick Select Buttons */}
-                  {product.variants && product.variants.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-gray-100/80">
-                      <span className="text-[10px] text-gray-400 font-semibold block mb-1">
-                        Variante / Taille :
-                      </span>
-                      <div className="flex flex-wrap gap-1">
-                        {product.variants.map((v) => (
-                          <button
-                            key={v}
-                            type="button"
-                            disabled={isOutOfStock}
-                            onClick={() => handleAddToCart(product, v)}
-                            className="px-2 py-0.5 rounded-lg bg-gray-100 hover:bg-emerald-600 hover:text-white text-gray-700 text-[10px] font-bold transition-colors"
-                          >
-                            + {v}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="pt-2 mt-2 border-t border-gray-100 flex items-center justify-between">
-                    <span className="font-bold text-xs text-emerald-700 font-mono">
-                      {formatFCFA(product.salePrice)}
-                    </span>
-                    
-                    {!product.variants || product.variants.length === 0 ? (
-                      <button
-                        type="button"
-                        disabled={isOutOfStock}
-                        onClick={() => handleAddToCart(product)}
-                        className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center space-x-1 ${
-                          isOutOfStock
-                            ? 'bg-red-100 text-red-600 cursor-not-allowed'
-                            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
-                        }`}
-                      >
-                        <Plus className="w-3 h-3" />
-                        <span>Ajouter</span>
-                      </button>
-                    ) : (
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                        isOutOfStock ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-800'
-                      }`}>
-                        {isOutOfStock ? 'Rupture' : `Stock: ${product.stock}`}
-                      </span>
-                    )}
-                  </div>
+                );
+              })
+            ) : (
+              <div className="col-span-full p-8 text-center bg-white rounded-3xl border border-dashed border-emerald-200 text-emerald-800 space-y-3">
+                <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                  <Tag className="w-6 h-6" />
                 </div>
-              );
-            })}
+                <div>
+                  <h4 className="font-bold text-sm text-[#064E3B]">Aucun article disponible</h4>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {products.length === 0 
+                      ? "Votre stock est vide pour le moment. Ajoutez vos articles pour commencer à encaisser." 
+                      : "Aucun article ne correspond à votre recherche."}
+                  </p>
+                </div>
+                {products.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('stock')}
+                    className="btn-magnetic px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow"
+                  >
+                    <span>+ Ajouter un article au stock</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

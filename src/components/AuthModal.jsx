@@ -17,15 +17,19 @@ import {
   HelpCircle
 } from 'lucide-react';
 
+import { emptyAllData } from '../utils/storage';
+import { getSupabaseClient } from '../services/supabaseClient';
+
 const AuthModal = ({ initialMode = 'login', initialPlan = 'PRO', onClose, onLoginSuccess }) => {
   const [mode, setMode] = useState(initialMode); // 'login' | 'register'
   const [selectedPlan, setSelectedPlan] = useState(initialPlan); // 'FREE' | 'PRO' | 'VIP'
+  const [isLoading, setIsLoading] = useState(false);
   
   // Form State
   const [formData, setFormData] = useState({
     ownerName: '',
     storeName: '',
-    city: 'Ouagadougou',
+    city: 'Ouagadougou, Burkina Faso',
     email: '',
     phone: '',
     password: ''
@@ -33,44 +37,91 @@ const AuthModal = ({ initialMode = 'login', initialPlan = 'PRO', onClose, onLogi
 
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
+    setIsLoading(true);
 
-    if (mode === 'register') {
-      if (!formData.storeName.trim() || !formData.phone.trim() || !formData.password.trim()) {
-        setErrorMsg('Veuillez renseigner le nom de la boutique, le téléphone WhatsApp et un mot de passe.');
-        return;
+    const client = getSupabaseClient();
+    const cleanPhone = formData.phone.trim();
+    const cleanEmail = formData.email.trim() || `${cleanPhone.replace(/\D/g, '') || 'user'}@stockflow.com`;
+
+    try {
+      if (mode === 'register') {
+        if (!formData.storeName.trim() || !cleanPhone || !formData.password.trim()) {
+          setErrorMsg('Veuillez renseigner le nom de la boutique, le téléphone WhatsApp et un mot de passe.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Tenter l'inscription Supabase Auth si configuré
+        if (client) {
+          try {
+            await client.auth.signUp({
+              email: cleanEmail,
+              password: formData.password,
+              options: {
+                data: {
+                  owner_name: formData.ownerName.trim() || 'Commerçant',
+                  store_name: formData.storeName.trim(),
+                  phone: cleanPhone,
+                  city: formData.city.trim() || 'Ouagadougou, Burkina Faso',
+                  plan: selectedPlan
+                }
+              }
+            });
+          } catch (authErr) {
+            console.warn('Supabase Auth SignUp (ignoré si facultatif):', authErr.message);
+          }
+        }
+
+        // Nettoyer toutes les anciennes données de démo pour démarrer 100% à vide
+        emptyAllData();
+
+        const newUser = {
+          ownerName: formData.ownerName.trim() || 'Commerçant',
+          storeName: formData.storeName.trim(),
+          city: formData.city.trim() || 'Ouagadougou, Burkina Faso',
+          email: cleanEmail,
+          phone: cleanPhone,
+          plan: selectedPlan,
+          registeredAt: new Date().toISOString()
+        };
+
+        onLoginSuccess(newUser, { isRegister: true });
+      } else {
+        if (!cleanPhone || !formData.password.trim()) {
+          setErrorMsg('Veuillez entrer votre numéro de téléphone et mot de passe.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Tenter la connexion Supabase Auth si configuré
+        if (client) {
+          try {
+            await client.auth.signInWithPassword({
+              email: cleanEmail,
+              password: formData.password
+            });
+          } catch (authErr) {
+            console.warn('Supabase Auth SignIn (ignoré si local):', authErr.message);
+          }
+        }
+
+        const loggedUser = {
+          ownerName: formData.ownerName.trim() || 'Commerçant',
+          storeName: formData.storeName.trim() || 'Ma Boutique',
+          city: formData.city.trim() || 'Ouagadougou, Burkina Faso',
+          email: cleanEmail,
+          phone: cleanPhone,
+          plan: 'PRO',
+          registeredAt: new Date().toISOString()
+        };
+
+        onLoginSuccess(loggedUser, { isLogin: true });
       }
-
-      const newUser = {
-        ownerName: formData.ownerName.trim() || 'Commerçant Pro',
-        storeName: formData.storeName.trim(),
-        city: formData.city.trim() || 'Ouagadougou',
-        email: formData.email.trim() || `${formData.phone.replace(/\D/g, '')}@stockflow.com`,
-        phone: formData.phone.trim(),
-        plan: selectedPlan,
-        registeredAt: new Date().toISOString()
-      };
-
-      onLoginSuccess(newUser);
-    } else {
-      if (!formData.phone.trim() || !formData.password.trim()) {
-        setErrorMsg('Veuillez entrer votre numéro de téléphone et mot de passe.');
-        return;
-      }
-
-      const loggedUser = {
-        ownerName: 'Mme Fatoumata Kaboré',
-        storeName: formData.storeName.trim() || 'Boutique Élégance Faso',
-        city: 'Ouagadougou, Burkina Faso',
-        email: 'fatoumata@elegancefaso.bf',
-        phone: formData.phone.trim(),
-        plan: 'PRO',
-        registeredAt: new Date().toISOString()
-      };
-
-      onLoginSuccess(loggedUser);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -321,7 +372,7 @@ const AuthModal = ({ initialMode = 'login', initialPlan = 'PRO', onClose, onLogi
                   storeName: 'Boutique Élégance Faso',
                   city: 'Ouagadougou, Burkina Faso',
                   phone: '+226 70 00 11 22'
-                });
+                }, { isDemo: true });
               }}
               className="text-xs font-bold text-emerald-700 hover:text-emerald-900 transition-colors inline-flex items-center gap-1"
             >

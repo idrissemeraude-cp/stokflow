@@ -5,9 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
-    <!-- SEO Meta Tags -->
+    <!-- SEO & PWA Meta Tags -->
     <title>StockFlow Pro — Gestion Commerciale, Stock & Caisse Boutiques</title>
     <meta name="description" content="StockFlow Pro — La plateforme n°1 de gestion de stock, caisse enregistreuse POS et relances WhatsApp en 1-clic pour commerçants et boutiques." />
+    <meta name="theme-color" content="#064E3B" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="StockFlow Pro" />
+    <link rel="manifest" href="/manifest.json" />
     
     <!-- Google Fonts (Inter Sans-Serif Basique) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,5 +22,14 @@
   <body class="bg-[#F0FDF4] text-[#064E3B] font-sans antialiased overflow-x-hidden">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(err => {
+            console.log('SW registration note:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>

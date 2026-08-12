@@ -210,7 +210,7 @@ export const parseProductsCsv = (csvText) => {
   return results;
 };
 
-// Initialisation et lecture du LocalStorage avec valeurs par défaut
+// Initialisation et lecture du LocalStorage avec valeurs par défaut (Vide par défaut pour nouveaux comptes)
 export const loadStoredData = () => {
   const getOrSet = (key, defaultData) => {
     const raw = localStorage.getItem(key);
@@ -226,19 +226,19 @@ export const loadStoredData = () => {
   };
 
   return {
-    products: getOrSet(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS),
-    clients: getOrSet(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS),
-    sales: getOrSet(STORAGE_KEYS.SALES, INITIAL_SALES),
-    payments: getOrSet(STORAGE_KEYS.PAYMENTS, INITIAL_PAYMENTS),
-    waLogs: getOrSet(STORAGE_KEYS.WA_LOGS, INITIAL_WHATSAPP_LOGS),
-    expenses: getOrSet(STORAGE_KEYS.EXPENSES, INITIAL_EXPENSES),
-    cashClosings: getOrSet(STORAGE_KEYS.CASH_CLOSINGS, INITIAL_CASH_CLOSINGS),
+    products: getOrSet(STORAGE_KEYS.PRODUCTS, []),
+    clients: getOrSet(STORAGE_KEYS.CLIENTS, []),
+    sales: getOrSet(STORAGE_KEYS.SALES, []),
+    payments: getOrSet(STORAGE_KEYS.PAYMENTS, []),
+    waLogs: getOrSet(STORAGE_KEYS.WA_LOGS, []),
+    expenses: getOrSet(STORAGE_KEYS.EXPENSES, []),
+    cashClosings: getOrSet(STORAGE_KEYS.CASH_CLOSINGS, []),
     userRole: localStorage.getItem(STORAGE_KEYS.USER_ROLE) || 'ADMIN',
     securityPin: localStorage.getItem(STORAGE_KEYS.SECURITY_PIN) || '1234',
     storeInfo: getOrSet(STORAGE_KEYS.STORE_INFO, {
-      name: 'Boutique Élégance Faso',
-      ownerName: 'Mme Fatoumata Kaboré',
-      phone: '+22670001122',
+      name: 'StockFlow Pro',
+      ownerName: 'Gérant',
+      phone: '+22600000000',
       city: 'Ouagadougou, Burkina Faso'
     })
   };
@@ -264,8 +264,28 @@ export const saveCashClosings = (cashClosings) => saveStoredData(STORAGE_KEYS.CA
 export const saveUserRole = (role) => localStorage.setItem(STORAGE_KEYS.USER_ROLE, role);
 export const saveSecurityPin = (pin) => localStorage.setItem(STORAGE_KEYS.SECURITY_PIN, pin);
 
-// Remise à zéro avec données d'exemple
-export const resetToInitialData = () => {
+// Remise à zéro complète (BDD 100% vide pour nouveau compte)
+export const emptyAllData = () => {
+  localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.WA_LOGS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.CASH_CLOSINGS, JSON.stringify([]));
+  return {
+    products: [],
+    clients: [],
+    sales: [],
+    payments: [],
+    waLogs: [],
+    expenses: [],
+    cashClosings: []
+  };
+};
+
+// Chargement explicite des données de démonstration
+export const loadDemoData = () => {
   localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
   localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(INITIAL_CLIENTS));
   localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(INITIAL_SALES));
@@ -273,6 +293,30 @@ export const resetToInitialData = () => {
   localStorage.setItem(STORAGE_KEYS.WA_LOGS, JSON.stringify(INITIAL_WHATSAPP_LOGS));
   localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(INITIAL_EXPENSES));
   localStorage.setItem(STORAGE_KEYS.CASH_CLOSINGS, JSON.stringify(INITIAL_CASH_CLOSINGS));
-  return loadStoredData();
+  localStorage.setItem(STORAGE_KEYS.STORE_INFO, JSON.stringify({
+    name: 'Boutique Élégance Faso',
+    ownerName: 'Mme Fatoumata Kaboré',
+    phone: '+22670001122',
+    city: 'Ouagadougou, Burkina Faso'
+  }));
+  return {
+    products: INITIAL_PRODUCTS,
+    clients: INITIAL_CLIENTS,
+    sales: INITIAL_SALES,
+    payments: INITIAL_PAYMENTS,
+    waLogs: INITIAL_WHATSAPP_LOGS,
+    expenses: INITIAL_EXPENSES,
+    cashClosings: INITIAL_CASH_CLOSINGS,
+    storeInfo: {
+      name: 'Boutique Élégance Faso',
+      ownerName: 'Mme Fatoumata Kaboré',
+      phone: '+22670001122',
+      city: 'Ouagadougou, Burkina Faso'
+    }
+  };
 };
+
+// Alias pour compatibilité
+export const resetToInitialData = loadDemoData;
+
 

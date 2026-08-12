@@ -187,16 +187,16 @@ export const mappers = {
   // STORE INFO
   storeInfoToRow: (s) => ({
     id: 'default_store',
-    name: s.name || 'Boutique Élégance Faso',
-    owner_name: s.ownerName || 'Mme Fatoumata Kaboré',
-    phone: s.phone || '+22670001122',
+    name: s.name || 'StockFlow Pro',
+    owner_name: s.ownerName || 'Gérant',
+    phone: s.phone || '+22600000000',
     city: s.city || 'Ouagadougou, Burkina Faso',
     updated_at: new Date().toISOString()
   }),
   rowToStoreInfo: (r) => ({
-    name: r.name || 'Boutique Élégance Faso',
-    ownerName: r.owner_name || 'Mme Fatoumata Kaboré',
-    phone: r.phone || '+22670001122',
+    name: r.name || 'StockFlow Pro',
+    ownerName: r.owner_name || 'Gérant',
+    phone: r.phone || '+22600000000',
     city: r.city || 'Ouagadougou, Burkina Faso'
   })
 };
@@ -206,43 +206,57 @@ export const mappers = {
 // ============================================================================
 
 export const dbService = {
-  // Récupérer toutes les données depuis Supabase
+  // Récupérer toutes les données depuis Supabase de manière sécurisée
   async fetchAllFromCloud() {
     const client = getSupabaseClient();
     if (!client) throw new Error('Supabase non configuré');
 
+    const safeFetch = async (tableName, orderCol = 'created_at') => {
+      try {
+        let query = client.from(tableName).select('*');
+        if (orderCol) {
+          query = query.order(orderCol, { ascending: false });
+        }
+        const { data, error } = await query;
+        if (error) {
+          console.warn(`[Supabase safeFetch] ${tableName}:`, error.message);
+          return [];
+        }
+        return data || [];
+      } catch (err) {
+        console.warn(`[Supabase safeFetch catch] ${tableName}:`, err);
+        return [];
+      }
+    };
+
     const [
-      { data: products, error: prodErr },
-      { data: clients, error: cliErr },
-      { data: sales, error: salesErr },
-      { data: payments, error: payErr },
-      { data: expenses, error: expErr },
-      { data: cashClosings, error: closeErr },
-      { data: waLogs, error: waErr },
-      { data: storeInfo, error: storeErr }
+      products,
+      clients,
+      sales,
+      payments,
+      expenses,
+      cashClosings,
+      waLogs,
+      storeInfo
     ] = await Promise.all([
-      client.from('products').select('*').order('created_at', { ascending: false }),
-      client.from('clients').select('*').order('created_at', { ascending: false }),
-      client.from('sales').select('*').order('created_at', { ascending: false }),
-      client.from('payments').select('*').order('created_at', { ascending: false }),
-      client.from('expenses').select('*').order('created_at', { ascending: false }),
-      client.from('cash_closings').select('*').order('created_at', { ascending: false }),
-      client.from('whatsapp_logs').select('*').order('created_at', { ascending: false }),
-      client.from('store_info').select('*').limit(1)
+      safeFetch('products'),
+      safeFetch('clients'),
+      safeFetch('sales'),
+      safeFetch('payments'),
+      safeFetch('expenses'),
+      safeFetch('cash_closings'),
+      safeFetch('whatsapp_logs'),
+      safeFetch('store_info', null)
     ]);
 
-    if (prodErr) throw prodErr;
-    if (cliErr) throw cliErr;
-    if (salesErr) throw salesErr;
-
     return {
-      products: (products || []).map(mappers.rowToProduct),
-      clients: (clients || []).map(mappers.rowToClient),
-      sales: (sales || []).map(mappers.rowToSale),
-      payments: (payments || []).map(mappers.rowToPayment),
-      expenses: (expenses || []).map(mappers.rowToExpense),
-      cashClosings: (cashClosings || []).map(mappers.rowToClosing),
-      waLogs: (waLogs || []).map(mappers.rowToWaLog),
+      products: products.map(mappers.rowToProduct),
+      clients: clients.map(mappers.rowToClient),
+      sales: sales.map(mappers.rowToSale),
+      payments: payments.map(mappers.rowToPayment),
+      expenses: expenses.map(mappers.rowToExpense),
+      cashClosings: cashClosings.map(mappers.rowToClosing),
+      waLogs: waLogs.map(mappers.rowToWaLog),
       storeInfo: storeInfo && storeInfo[0] ? mappers.rowToStoreInfo(storeInfo[0]) : null
     };
   },

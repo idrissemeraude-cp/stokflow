@@ -31,10 +31,13 @@ import {
   saveCashClosings,
   saveUserRole,
   saveStoreInfo,
-  resetToInitialData
+  resetToInitialData,
+  emptyAllData,
+  loadDemoData
 } from './utils/storage';
 import { syncEngine } from './services/syncEngine';
-import { mappers } from './services/dbService';
+import { dbService, mappers } from './services/dbService';
+import { getSupabaseConfig } from './services/supabaseClient';
 
 export function App() {
   // Global View State ('landing' | 'dashboard')
@@ -58,7 +61,7 @@ export function App() {
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // App Data State
+  // App Data State (0 items by default)
   const [products, setProducts] = useState([]);
   const [clients, setClients] = useState([]);
   const [sales, setSales] = useState([]);
@@ -67,9 +70,9 @@ export function App() {
   const [expenses, setExpenses] = useState([]);
   const [cashClosings, setCashClosings] = useState([]);
   const [storeInfo, setStoreInfo] = useState({
-    name: 'Boutique Élégance Faso',
-    ownerName: 'Mme Fatoumata Kaboré',
-    phone: '+22670001122',
+    name: 'StockFlow Pro',
+    ownerName: 'Gérant',
+    phone: '+22600000000',
     city: 'Ouagadougou, Burkina Faso'
   });
 
@@ -96,7 +99,23 @@ export function App() {
     if (loaded.storeInfo) setStoreInfo(loaded.storeInfo);
 
     // Initialiser le moteur de synchronisation
-    syncEngine.init();
+    syncEngine.init().then(async () => {
+      const config = getSupabaseConfig();
+      if (config.isConfigured) {
+        try {
+          const cloudData = await dbService.fetchAllFromCloud();
+          if (cloudData) {
+            // Si la base Supabase contient des données (ou si c'est un nouveau projet vide), synchroniser le state
+            if (cloudData.products?.length > 0 || cloudData.sales?.length > 0 || cloudData.clients?.length > 0) {
+              handleCloudDataImported(cloudData);
+            }
+          }
+        } catch (err) {
+          console.warn('[Supabase Init Auto-Fetch] info:', err.message);
+        }
+      }
+    });
+
     const unsubSync = syncEngine.subscribe((state) => {
       setSyncState(state);
     });
@@ -161,18 +180,89 @@ export function App() {
   }, []);
 
   // Auth Handlers
-  const handleLoginSuccess = (userPayload) => {
+  const handleLoginSuccess = async (userPayload, meta = {}) => {
     setCurrentUser(userPayload);
     localStorage.setItem('stockflow_user', JSON.stringify(userPayload));
     localStorage.setItem('stockflow_visited', 'true');
     setAuthModalMode(null);
     setCurrentView('dashboard');
+
+    if (meta.isDemo) {
+      // Chargement explicite des données de démonstration
+      const demoData = loadDemoData();
+      setProducts(demoData.products);
+      setClients(demoData.clients);
+      setSales(demoData.sales);
+      setPayments(demoData.payments);
+      setWaLogs(demoData.waLogs);
+      setExpenses(demoData.expenses);
+      setCashClosings(demoData.cashClosings);
+      setStoreInfo(demoData.storeInfo);
+      return;
+    }
+
+    if (meta.isRegister) {
+      // 🚀 NOUVEAU COMPTE CRÉÉ : Tous les dashboards démarrent 100% VIDES
+      emptyAllData();
+      setProducts([]);
+      setClients([]);
+      setSales([]);
+      setPayments([]);
+      setWaLogs([]);
+      setExpenses([]);
+      setCashClosings([]);
+
+      const newStoreInfo = {
+        name: userPayload.storeName || 'Ma Boutique',
+        ownerName: userPayload.ownerName || 'Gérant',
+        phone: userPayload.phone || '',
+        city: userPayload.city || 'Ouagadougou, Burkina Faso'
+      };
+
+      setStoreInfo(newStoreInfo);
+      saveStoreInfo(newStoreInfo);
+
+      // Enregistrer la boutique sur Supabase si connecté
+      syncEngine.enqueue('UPSERT', 'store_info', mappers.storeInfoToRow(newStoreInfo));
+      return;
+    }
+
+    // Connexion existante
     if (userPayload.storeName) {
-      setStoreInfo(prev => ({ ...prev, name: userPayload.storeName, ownerName: userPayload.ownerName }));
+      setStoreInfo(prev => ({
+        ...prev,
+        name: userPayload.storeName,
+        ownerName: userPayload.ownerName || prev.ownerName,
+        phone: userPayload.phone || prev.phone,
+        city: userPayload.city || prev.city
+      }));
+    }
+
+    // Tenter de récupérer les données distantes du compte
+    const config = getSupabaseConfig();
+    if (config.isConfigured) {
+      try {
+        const cloudData = await dbService.fetchAllFromCloud();
+        if (cloudData) {
+          handleCloudDataImported(cloudData);
+        }
+      } catch (err) {
+        console.warn('Erreur récupération données Cloud:', err.message);
+      }
     }
   };
 
   const handleEnterDemo = () => {
+    // Mode démo explicite demandé depuis la page d'accueil
+    const demoData = loadDemoData();
+    setProducts(demoData.products);
+    setClients(demoData.clients);
+    setSales(demoData.sales);
+    setPayments(demoData.payments);
+    setWaLogs(demoData.waLogs);
+    setExpenses(demoData.expenses);
+    setCashClosings(demoData.cashClosings);
+    setStoreInfo(demoData.storeInfo);
     localStorage.setItem('stockflow_visited', 'true');
     setCurrentView('dashboard');
   };
@@ -453,24 +543,47 @@ export function App() {
     URL.revokeObjectURL(url);
   };
 
-  // Reset to initial demo data
-  const handleResetData = () => {
+  // Vider complètement toutes les données locales
+  const handleClearAllData = () => {
     if (userRole === 'CASHIER') {
       alert('⛔ Action non autorisée en mode Caissier.');
       return;
     }
-    if (window.confirm('Voulez-vous réinitialiser toutes les données avec les exemples de démonstration ?')) {
-      const reset = resetToInitialData();
-      setProducts(reset.products);
-      setClients(reset.clients);
-      setSales(reset.sales);
-      setPayments(reset.payments);
-      setWaLogs(reset.waLogs);
-      setExpenses(reset.expenses);
-      setCashClosings(reset.cashClosings);
-      alert('✅ Données réinitialisées avec succès !');
+    if (window.confirm('Voulez-vous vraiment vider toutes les données (produits, ventes, clients, dépenses) ? Vos tableaux de bord seront remis à zéro.')) {
+      emptyAllData();
+      setProducts([]);
+      setClients([]);
+      setSales([]);
+      setPayments([]);
+      setWaLogs([]);
+      setExpenses([]);
+      setCashClosings([]);
+      alert('✅ Tableaux de bord remis à zéro (0 article, 0 vente).');
     }
   };
+
+  // Charger les données d'exemple de démonstration
+  const handleLoadDemoData = () => {
+    if (userRole === 'CASHIER') {
+      alert('⛔ Action non autorisée en mode Caissier.');
+      return;
+    }
+    if (window.confirm('Voulez-vous charger les données d\'exemple de démonstration ?')) {
+      const demo = loadDemoData();
+      setProducts(demo.products);
+      setClients(demo.clients);
+      setSales(demo.sales);
+      setPayments(demo.payments);
+      setWaLogs(demo.waLogs);
+      setExpenses(demo.expenses);
+      setCashClosings(demo.cashClosings);
+      setStoreInfo(demo.storeInfo);
+      alert('✅ Données de démonstration chargées avec succès !');
+    }
+  };
+
+  // Reset to initial demo data (alias)
+  const handleResetData = handleClearAllData;
 
   // Computed Indicators
   const lowStockCount = products.filter(p => p.stock <= (p.lowStockThreshold || 2)).length;
@@ -687,6 +800,8 @@ export function App() {
           storeInfo
         }}
         onCloudDataImported={handleCloudDataImported}
+        onClearAllData={handleClearAllData}
+        onLoadDemoData={handleLoadDemoData}
       />
 
     </div>

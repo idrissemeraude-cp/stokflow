@@ -29,7 +29,9 @@ export default function DatabaseSettingsModal({
   isOpen,
   onClose,
   localState,
-  onCloudDataImported
+  onCloudDataImported,
+  onClearAllData,
+  onLoadDemoData
 }) {
   const [activeTab, setActiveTab] = useState('config'); // 'config' | 'schema' | 'sync'
   const [url, setUrl] = useState('');
@@ -462,6 +464,37 @@ export default function DatabaseSettingsModal({
                   <RefreshCw className={`w-3.5 h-3.5 ${isPushing ? 'animate-spin' : ''}`} />
                   Forcer la Synchronisation Immédiate
                 </button>
+              </div>
+
+              {/* Maintenance & Reset Actions */}
+              <div className="p-5 border border-slate-200 bg-slate-50 rounded-2xl space-y-3">
+                <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-slate-600" />
+                  Maintenance & Réinitialisation de la Base Locale
+                </h4>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Permet de remettre à zéro les tableaux de bord (0 article, 0 vente) pour une utilisation neuve, ou de charger les exemples de test.
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onClearAllData) onClearAllData();
+                    }}
+                    className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition-colors"
+                  >
+                    🗑️ Vider Toutes les Données (Remise à Zéro)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onLoadDemoData) onLoadDemoData();
+                    }}
+                    className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl transition-colors"
+                  >
+                    ⚡ Charger Données Démo
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -110,11 +110,39 @@ const DashboardModule = ({
 
   const maxSpent = Math.max(...topClients.map(c => c.totalSpent), 1);
 
-  // Chart dataset for Inventory vs Sales
-  const chartMonths = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août'];
-  const inventoryValues = [450, 420, 380, 510, 490, 530, 480, 550];
-  const salesValues = [280, 320, 410, 390, 480, 520, 610, 670];
-  const maxChartVal = 700;
+  // Dynamic monthly aggregation for Inventory & Sales
+  const monthNamesFr = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
+  const now = new Date();
+  const currentMonthIdx = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const dynamicMonthsData = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(currentYear, currentMonthIdx - 5 + i, 1);
+    const mIdx = d.getMonth();
+    const yr = d.getFullYear();
+    const label = monthNamesFr[mIdx];
+    const monthKey = `${yr}-${String(mIdx + 1).padStart(2, '0')}`;
+
+    const monthSalesTotal = sales
+      .filter(s => s.createdAt && s.createdAt.startsWith(monthKey))
+      .reduce((sum, s) => sum + (Number(s.totalAmount) || 0), 0);
+
+    const isCurrentMonth = i === 5;
+    const monthStockVal = isCurrentMonth ? totalStockValue : (monthSalesTotal > 0 ? totalStockValue : 0);
+
+    return {
+      label,
+      monthKey,
+      salesVal: monthSalesTotal,
+      stockVal: monthStockVal
+    };
+  });
+
+  const chartMonths = dynamicMonthsData.map(m => m.label);
+  const salesValues = dynamicMonthsData.map(m => m.salesVal);
+  const inventoryValues = dynamicMonthsData.map(m => m.stockVal);
+  const rawMax = Math.max(...salesValues, ...inventoryValues, 10000);
+  const maxChartVal = rawMax > 0 ? rawMax : 10000;
 
   return (
     <div className="space-y-6 pb-12">
@@ -171,10 +199,18 @@ const DashboardModule = ({
             {formatFCFA(totalCashCollected)}
           </p>
           <div className="flex items-center space-x-1.5 mt-2">
-            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-              <ArrowUpRight className="w-3 h-3" /> +3.2%
-            </span>
-            <span className="text-xs text-gray-400">vs mois dernier</span>
+            {totalSalesCount > 0 ? (
+              <>
+                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <ArrowUpRight className="w-3 h-3" /> {totalSalesCount} vente{totalSalesCount > 1 ? 's' : ''}
+                </span>
+                <span className="text-xs text-gray-400">enregistrée{totalSalesCount > 1 ? 's' : ''}</span>
+              </>
+            ) : (
+              <span className="bg-gray-100 text-gray-600 text-[10px] font-medium px-2 py-0.5 rounded-full">
+                0 encaissement pour l'instant
+              </span>
+            )}
           </div>
         </div>
 
@@ -194,7 +230,7 @@ const DashboardModule = ({
           </p>
           <div className="flex items-center space-x-1.5 mt-2">
             <span className="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-              Attention requise
+              {lowStockProducts.length > 0 ? 'Attention requise' : 'Stock optimal'}
             </span>
             <span className="text-xs text-gray-400 group-hover:text-red-600 transition-colors">Voir stock &rarr;</span>
           </div>
@@ -212,7 +248,7 @@ const DashboardModule = ({
             {totalStockCount} <span className="text-sm font-normal text-gray-500">unités</span>
           </p>
           <p className="text-xs text-gray-500 mt-2">
-            {products.length} références d'articles
+            {products.length} référence{products.length > 1 ? 's' : ''} d'articles
           </p>
         </div>
 
@@ -260,29 +296,29 @@ const DashboardModule = ({
         {/* Bar + Line Combined Visual Chart */}
         <div className="w-full overflow-x-auto">
           <div className="min-w-[550px] h-64 flex items-end justify-between gap-4 pt-8 pb-4 border-b border-gray-100 px-4">
-            {chartMonths.map((month, idx) => {
-              const invHeight = (inventoryValues[idx] / maxChartVal) * 100;
-              const saleHeight = (salesValues[idx] / maxChartVal) * 100;
+            {dynamicMonthsData.map((m) => {
+              const invHeight = maxChartVal > 0 ? (m.stockVal / maxChartVal) * 100 : 0;
+              const saleHeight = maxChartVal > 0 ? (m.salesVal / maxChartVal) * 100 : 0;
 
               return (
-                <div key={month} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group relative">
+                <div key={m.label} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group relative">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-[#064E3B] text-white text-[10px] px-2 py-1 rounded shadow pointer-events-none z-20 whitespace-nowrap">
-                    Ventes: {salesValues[idx]}k FCFA • Stock: {inventoryValues[idx]}k
+                    Ventes: {formatFCFA(m.salesVal)} • Stock: {formatFCFA(m.stockVal)}
                   </div>
 
                   <div className="w-full flex items-end justify-center space-x-1.5 h-full">
                     <div 
                       className="w-4 sm:w-6 bg-emerald-100 group-hover:bg-emerald-200 rounded-t-md transition-all"
-                      style={{ height: `${invHeight}%` }}
+                      style={{ height: `${Math.max(invHeight > 0 ? 5 : 0, invHeight)}%` }}
                     ></div>
                     <div 
                       className="w-4 sm:w-6 bg-gradient-to-t from-emerald-600 to-teal-500 rounded-t-md transition-all shadow-sm"
-                      style={{ height: `${saleHeight}%` }}
+                      style={{ height: `${Math.max(saleHeight > 0 ? 5 : 0, saleHeight)}%` }}
                     ></div>
                   </div>
 
                   <span className="text-[11px] text-gray-500 mt-2 font-semibold">
-                    {month}
+                    {m.label}
                   </span>
                 </div>
               );
@@ -376,30 +412,36 @@ const DashboardModule = ({
             </div>
 
             <div className="space-y-4">
-              {topClients.map((c, idx) => {
-                const ratio = Math.round((c.totalSpent / maxSpent) * 100);
-                return (
-                  <div key={c.id} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-7 h-7 rounded-full bg-[#064E3B] text-white font-bold text-[10px] flex items-center justify-center">
-                          #{idx + 1}
+              {topClients.length > 0 ? (
+                topClients.map((c, idx) => {
+                  const ratio = Math.round((c.totalSpent / maxSpent) * 100);
+                  return (
+                    <div key={c.id} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-7 h-7 rounded-full bg-[#064E3B] text-white font-bold text-[10px] flex items-center justify-center">
+                            #{idx + 1}
+                          </div>
+                          <span className="font-semibold text-gray-800">{c.name}</span>
                         </div>
-                        <span className="font-semibold text-gray-800">{c.name}</span>
+                        <span className="font-bold text-emerald-800">
+                          {formatFCFA(c.totalSpent)}
+                        </span>
                       </div>
-                      <span className="font-bold text-emerald-800">
-                        {formatFCFA(c.totalSpent)}
-                      </span>
+                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.max(15, ratio)}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.max(15, ratio)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              ) : (
+                <p className="text-xs text-gray-500 italic py-6 text-center">
+                  Aucun client enregistré pour l'instant.
+                </p>
+              )}
             </div>
           </div>
 
