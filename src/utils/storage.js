@@ -353,19 +353,13 @@ export const loadStoredData = () => {
   };
 
   const rawProducts = getOrSet(STORAGE_KEYS.PRODUCTS, []);
-  const cleanProducts = Array.isArray(rawProducts)
-    ? rawProducts.filter(p => !p.id?.startsWith('prod-') || p.id?.startsWith('prod-csv-') || p.id?.startsWith('prod-user-') || p.id?.startsWith('demo-prod-'))
-    : [];
+  const cleanProducts = Array.isArray(rawProducts) ? rawProducts : [];
 
   const rawSales = getOrSet(STORAGE_KEYS.SALES, []);
-  const cleanSales = Array.isArray(rawSales)
-    ? rawSales.filter(s => !s.id?.startsWith('sale-') || s.id?.startsWith('sale-user-') || s.id?.startsWith('demo-sale-'))
-    : [];
+  const cleanSales = Array.isArray(rawSales) ? rawSales : [];
 
   const rawClients = getOrSet(STORAGE_KEYS.CLIENTS, []);
-  const cleanClients = Array.isArray(rawClients)
-    ? rawClients.filter(c => !c.id?.startsWith('cli-') || c.id?.startsWith('cli-user-') || c.id?.startsWith('demo-cli-'))
-    : [];
+  const cleanClients = Array.isArray(rawClients) ? rawClients : [];
 
   return {
     products: cleanProducts,

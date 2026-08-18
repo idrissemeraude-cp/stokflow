@@ -21,7 +21,7 @@ import {
 
 const navItems = [
   { id: 'dashboard', label: 'Tableau de bord', shortLabel: 'Accueil', icon: LayoutDashboard },
-  { id: 'pos', label: 'Caisse & Vente POS', shortLabel: 'Caisse', icon: ShoppingCart, highlight: true },
+  { id: 'pos', label: 'Caisse & Vente POS', shortLabel: 'Caisse', icon: ShoppingCart },
   { id: 'stock', label: 'Gestion du Stock', shortLabel: 'Stock', icon: Package, badgeKey: 'lowStock' },
   { id: 'expenses', label: 'Dépenses & Charges', shortLabel: 'Dépenses', icon: TrendingDown },
   { id: 'closing', label: 'Clôture de Caisse (Z)', shortLabel: 'Clôture', icon: Lock },
@@ -81,8 +81,6 @@ const Navigation = ({
                   className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0 py-2.5' : 'justify-between px-3.5 py-2.5'} rounded-2xl text-xs font-semibold transition-all duration-200 relative group ${
                     isActive
                       ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 font-bold shadow-md'
-                      : item.highlight
-                      ? 'bg-emerald-500/20 text-emerald-100 border border-emerald-400/30 hover:bg-emerald-500/30'
                       : 'text-white/80 hover:bg-white/10 hover:text-white'
                   }`}
                 >
@@ -216,8 +214,6 @@ const Navigation = ({
                 className={`relative flex flex-col items-center justify-center py-1.5 px-2.5 rounded-xl text-center transition-all ${
                   isActive
                     ? 'text-emerald-300 font-bold bg-emerald-500/20 shadow-sm'
-                    : item.highlight
-                    ? 'text-emerald-200 font-semibold'
                     : 'text-white/60 hover:text-white'
                 }`}
               >

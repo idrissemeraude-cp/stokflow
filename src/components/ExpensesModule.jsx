@@ -38,9 +38,8 @@ const ExpensesModule = ({ expenses = [], onSaveExpense, onDeleteExpense, userRol
   const [selectedCategory, setSelectedCategory] = useState('Toutes');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Form State
+  // Form State simplifié : Catégorie + Montant + Règlement + Date (+ note facultative)
   const [formData, setFormData] = useState({
-    title: '',
     category: 'Loyer',
     amount: '',
     paymentMethod: 'CASH',
@@ -64,15 +63,16 @@ const ExpensesModule = ({ expenses = [], onSaveExpense, onDeleteExpense, userRol
 
   // Filtered Expenses
   const filteredExpenses = expenses.filter(exp => {
-    const matchesSearch = exp.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (exp.note && exp.note.toLowerCase().includes(searchTerm.toLowerCase()));
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = (exp.category && exp.category.toLowerCase().includes(term)) ||
+                          (exp.title && exp.title.toLowerCase().includes(term)) ||
+                          (exp.note && exp.note.toLowerCase().includes(term));
     const matchesCat = selectedCategory === 'Toutes' || exp.category === selectedCategory;
     return matchesSearch && matchesCat;
   });
 
   const handleOpenModal = () => {
     setFormData({
-      title: '',
       category: 'Loyer',
       amount: '',
       paymentMethod: 'CASH',
@@ -84,16 +84,16 @@ const ExpensesModule = ({ expenses = [], onSaveExpense, onDeleteExpense, userRol
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.title.trim() || !formData.amount) return;
+    if (!formData.category || !formData.amount || Number(formData.amount) <= 0) return;
 
     const newExpense = {
       id: `exp-${Date.now()}`,
-      title: formData.title.trim(),
+      title: formData.category,
       category: formData.category,
       amount: Number(formData.amount),
       paymentMethod: formData.paymentMethod,
       date: formData.date,
-      note: formData.note.trim()
+      note: (formData.note || '').trim()
     };
 
     onSaveExpense(newExpense);
@@ -104,8 +104,7 @@ const ExpensesModule = ({ expenses = [], onSaveExpense, onDeleteExpense, userRol
     const rows = expenses.map(exp => ({
       ID: exp.id,
       Date: exp.date,
-      Titre: exp.title,
-      Categorie: exp.category,
+      Categorie: exp.category || exp.title,
       Montant_FCFA: exp.amount,
       Mode_Paiement: exp.paymentMethod,
       Notes: exp.note || ''
@@ -278,62 +277,75 @@ const ExpensesModule = ({ expenses = [], onSaveExpense, onDeleteExpense, userRol
               <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-100">
                 <tr>
                   <th className="p-3.5">Date</th>
-                  <th className="p-3.5">Intitulé de la Dépense</th>
-                  <th className="p-3.5">Catégorie</th>
+                  <th className="p-3.5">Catégorie de Dépense</th>
                   <th className="p-3.5">Mode Règlement</th>
+                  <th className="p-3.5">Note / Détail</th>
                   <th className="p-3.5 text-right">Montant</th>
                   {userRole === 'ADMIN' && <th className="p-3.5 text-center">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredExpenses.map(exp => (
-                  <tr key={exp.id} className="hover:bg-gray-50/80 transition-colors">
-                    <td className="p-3.5 text-gray-600 font-medium">
-                      {formatDateFr(exp.date)}
-                    </td>
-                    <td className="p-3.5">
-                      <div className="font-bold text-gray-900">{exp.title}</div>
-                      {exp.note && <div className="text-[11px] text-gray-400 mt-0.5">{exp.note}</div>}
-                    </td>
-                    <td className="p-3.5">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-200">
-                        {exp.category}
-                      </span>
-                    </td>
-                    <td className="p-3.5">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                        exp.paymentMethod === 'CASH' 
-                          ? 'bg-emerald-50 text-emerald-700' 
-                          : exp.paymentMethod === 'ORANGE_MONEY' 
-                          ? 'bg-orange-50 text-orange-700' 
-                          : 'bg-blue-50 text-blue-700'
-                      }`}>
-                        {exp.paymentMethod.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="p-3.5 text-right font-extrabold text-red-600 text-sm">
-                      -{formatFCFA(exp.amount)}
-                    </td>
-                    {userRole === 'ADMIN' && (
-                      <td className="p-3.5 text-center">
-                        <button
-                          onClick={() => onDeleteExpense(exp.id)}
-                          className="p-1.5 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                          title="Supprimer cette dépense"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                {filteredExpenses.map(exp => {
+                  const catConfig = EXPENSE_CATEGORIES.find(c => c.id === exp.category) || {
+                    name: exp.category || 'Charge',
+                    icon: Receipt,
+                    color: 'bg-gray-100 text-gray-700'
+                  };
+                  const Icon = catConfig.icon || Receipt;
+
+                  return (
+                    <tr key={exp.id} className="hover:bg-gray-50/80 transition-colors">
+                      <td className="p-3.5 text-gray-600 font-medium whitespace-nowrap">
+                        {formatDateFr(exp.date)}
                       </td>
-                    )}
-                  </tr>
-                ))}
+                      <td className="p-3.5">
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-7 h-7 rounded-xl flex items-center justify-center ${catConfig.color}`}>
+                            <Icon className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="font-bold text-gray-900 text-xs">
+                            {catConfig.name || exp.category}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-3.5 whitespace-nowrap">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                          exp.paymentMethod === 'CASH' 
+                            ? 'bg-emerald-50 text-emerald-700' 
+                            : exp.paymentMethod === 'ORANGE_MONEY' 
+                            ? 'bg-orange-50 text-orange-700' 
+                            : 'bg-blue-50 text-blue-700'
+                        }`}>
+                          {exp.paymentMethod.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="p-3.5 text-gray-500 text-[11px] max-w-[200px] truncate">
+                        {exp.note || <span className="text-gray-300 italic">—</span>}
+                      </td>
+                      <td className="p-3.5 text-right font-extrabold text-red-600 text-sm whitespace-nowrap">
+                        -{formatFCFA(exp.amount)}
+                      </td>
+                      {userRole === 'ADMIN' && (
+                        <td className="p-3.5 text-center">
+                          <button
+                            onClick={() => onDeleteExpense(exp.id)}
+                            className="p-1.5 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Supprimer cette dépense"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* New Expense Modal */}
+      {/* New Expense Modal Simplifié */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-[#064E3B]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-emerald-200 space-y-4">
@@ -350,49 +362,40 @@ const ExpensesModule = ({ expenses = [], onSaveExpense, onDeleteExpense, userRol
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-gray-700 mb-1">Motif / Intitulé de la dépense *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="ex: Facture SONABEL, Achat sachets, Transport colis..."
-                  value={formData.title}
-                  onChange={(e) => setFormData({...formData, title: e.target.value})}
-                  className="w-full px-3.5 py-2.5 rounded-2xl bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-emerald-500/50 focus:outline-none font-medium"
-                />
+                <label className="block font-bold text-gray-700 mb-1.5">
+                  1. Sélectionner la Catégorie de Charge *
+                </label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({...formData, category: e.target.value})}
+                  className="w-full px-3.5 py-3 rounded-2xl bg-gray-50 border border-gray-300 font-bold text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                >
+                  <option value="Loyer">🏢 Loyer Boutique</option>
+                  <option value="Électricité / Eau">⚡ Électricité & Eau (SONABEL/ONEA)</option>
+                  <option value="Transport / Livraison">🚚 Transport & Livraisons</option>
+                  <option value="Salaires">👥 Salaires & Commissions</option>
+                  <option value="Fournitures">📦 Fournitures & Emballages</option>
+                  <option value="Maintenance">🔧 Maintenance & Réparations</option>
+                  <option value="Autre">🧾 Autre charge générale</option>
+                </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">Catégorie *</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({...formData, category: e.target.value})}
-                    className="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-300 font-semibold focus:outline-none"
-                  >
-                    <option value="Loyer">Loyer Boutique</option>
-                    <option value="Électricité / Eau">Électricité & Eau</option>
-                    <option value="Transport / Livraison">Transport & Livraisons</option>
-                    <option value="Salaires">Salaires & Commissions</option>
-                    <option value="Fournitures">Fournitures & Emballages</option>
-                    <option value="Maintenance">Maintenance & Réparations</option>
-                    <option value="Autre">Autre charge</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">Montant (FCFA) *</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    placeholder="ex: 15000"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-gray-50 border border-red-300 text-red-600 font-extrabold focus:ring-2 focus:ring-red-500/50 focus:outline-none"
-                  />
-                </div>
+              <div>
+                <label className="block font-bold text-gray-700 mb-1.5">
+                  2. Montant de la dépense (FCFA) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  autoFocus
+                  placeholder="ex: 15000"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                  className="w-full px-3.5 py-3 rounded-2xl bg-gray-50 border border-red-300 text-red-600 font-extrabold text-lg focus:ring-2 focus:ring-red-500/50 focus:outline-none"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -403,7 +406,7 @@ const ExpensesModule = ({ expenses = [], onSaveExpense, onDeleteExpense, userRol
                     onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
                     className="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-300 font-semibold focus:outline-none"
                   >
-                    <option value="CASH">Espèces (Caisse boutique)</option>
+                    <option value="CASH">Espèces (Caisse)</option>
                     <option value="ORANGE_MONEY">Orange Money</option>
                     <option value="MOOV_MONEY">Moov Money</option>
                     <option value="WAVE">Wave</option>
@@ -418,8 +421,7 @@ const ExpensesModule = ({ expenses = [], onSaveExpense, onDeleteExpense, userRol
                     value={formData.date}
                     onChange={(e) => setFormData({...formData, date: e.target.value})}
                     className="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-300 font-semibold focus:outline-none"
-                  >
-                  </input>
+                  />
                 </div>
               </div>
 
@@ -438,13 +440,13 @@ const ExpensesModule = ({ expenses = [], onSaveExpense, onDeleteExpense, userRol
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-2xl bg-gray-100 text-gray-700 font-bold hover:bg-gray-200"
+                  className="px-4 py-2.5 rounded-2xl bg-gray-100 text-gray-700 font-bold hover:bg-gray-200 transition-colors"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-md shadow-red-600/20"
+                  className="px-5 py-2.5 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-md shadow-red-600/20 transition-all"
                 >
                   Enregistrer la Dépense
                 </button>

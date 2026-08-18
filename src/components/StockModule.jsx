@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { formatFCFA } from '../utils/storage';
 
-const CATEGORIES = ['Tous', 'Robes', 'Ensembles', 'Chemises', 'Boubous', 'Chaussures', 'Accessoires'];
+const CATEGORIES = ['Tous', 'Robes', 'Ensembles', 'Chemises', 'Tissus', 'Boubous', 'Chaussures', 'Accessoires'];
 
 const StockModule = ({ 
   products = [], 

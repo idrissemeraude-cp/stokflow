@@ -343,6 +343,27 @@ export function App() {
     syncEngine.enqueue('UPSERT', 'clients', mappers.clientToRow(clientPayload));
   };
 
+  const handleDeleteClient = (clientId) => {
+    if (userRole !== 'ADMIN') {
+      alert('Seul un administrateur peut supprimer un client.');
+      return;
+    }
+    const clientToDelete = clients.find(c => c.id === clientId);
+    const clientName = clientToDelete ? clientToDelete.name : 'ce client';
+    
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ${clientName} ? Cette action est irréversible.`)) {
+      return;
+    }
+
+    setClients(prev => {
+      const updated = prev.filter(c => c.id !== clientId);
+      saveClients(updated);
+      return updated;
+    });
+
+    syncEngine.enqueue('DELETE', 'clients', { id: clientId });
+  };
+
   // Handler pour l'enregistrement d'une Vente (Caisse POS)
   const handleSaveSale = (salePayload, advanceMethod = 'CASH') => {
     setProducts(prevProducts => {
@@ -712,6 +733,8 @@ export function App() {
                   sales={sales}
                   payments={payments}
                   onSaveClient={handleSaveClient}
+                  onDeleteClient={handleDeleteClient}
+                  userRole={userRole}
                   onOpenCreditModal={(sale) => setCreditModalSale(sale)}
                   onOpenReceiptModal={(sale) => setCurrentReceiptSale(sale)}
                   setActiveTab={setActiveTab}
