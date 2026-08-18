@@ -35,27 +35,6 @@ const Header = ({
   onOpenDatabaseModal,
   syncState = { status: 'UNCONFIGURED', pendingCount: 0 }
 }) => {
-  const getCloudIcon = () => {
-    if (syncState?.status === 'CONNECTED') {
-      return (
-        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-      );
-    }
-    if (syncState?.status === 'SYNCING') {
-      return (
-        <RotateCcw className="w-3.5 h-3.5 text-amber-300 animate-spin" />
-      );
-    }
-    if (syncState?.status === 'OFFLINE') {
-      return (
-        <span className="w-2 h-2 rounded-full bg-red-400"></span>
-      );
-    }
-    return (
-      <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-    );
-  };
-
   return (
     <header className="bg-[#064E3B] text-white border-b border-emerald-600/40 sticky top-0 z-40 shadow-xl print:hidden w-full">
       <div className="w-full px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
@@ -110,26 +89,6 @@ const Header = ({
         {/* Quick Indicators & Actions */}
         <div className="flex items-center space-x-2">
           
-          {/* Cloud Database Sync Pill */}
-          <button
-            type="button"
-            onClick={onOpenDatabaseModal}
-            title="Gestion de la Base de Données & Synchronisation Cloud Supabase"
-            className="px-3 py-1.5 rounded-2xl text-xs font-bold flex items-center space-x-2 transition-all border bg-white/10 hover:bg-white/20 border-white/25 text-white"
-          >
-            <div className="flex items-center gap-1.5">
-              {getCloudIcon()}
-              <span className="text-[11px]">
-                {syncState?.status === 'CONNECTED' ? 'PostgreSQL Cloud' : 'Base de Données'}
-              </span>
-            </div>
-            {syncState?.pendingCount > 0 && (
-              <span className="bg-amber-400 text-slate-900 text-[10px] px-1.5 py-0.2 rounded-full font-extrabold">
-                {syncState.pendingCount}
-              </span>
-            )}
-          </button>
-
           {/* Role Switcher Pill */}
           <button
             type="button"
