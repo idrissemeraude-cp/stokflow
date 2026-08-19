@@ -177,6 +177,14 @@ class SyncEngine {
         entity = 'cashClosings';
         mappedData = newRow ? mappers.rowToClosing(newRow) : null;
         break;
+      case 'profiles':
+        entity = 'profiles';
+        mappedData = newRow ? mappers.rowToProfile(newRow) : null;
+        break;
+      case 'store_info':
+        entity = 'storeInfo';
+        mappedData = newRow ? mappers.rowToStoreInfo(newRow) : null;
+        break;
       default:
         break;
     }

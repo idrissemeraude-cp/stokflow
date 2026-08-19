@@ -33,6 +33,8 @@ const Header = ({
   isSidebarCollapsed,
   onToggleSidebar,
   onOpenDatabaseModal,
+  onOpenUsersModal,
+  userCount = 1,
   syncState = { status: 'UNCONFIGURED', pendingCount: 0 }
 }) => {
   return (
@@ -124,6 +126,28 @@ const Header = ({
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-300" />
             <span>Excel/CSV</span>
+          </button>
+
+          {/* Users & Team Management */}
+          <button
+            type="button"
+            onClick={onOpenUsersModal}
+            title="Gestion des utilisateurs & caissiers (Supabase)"
+            className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-2xl text-xs items-center space-x-1.5 transition-all border border-white/20 font-semibold flex"
+          >
+            <User className="w-3.5 h-3.5 text-emerald-300" />
+            <span className="hidden sm:inline">Équipe ({userCount || 1})</span>
+          </button>
+
+          {/* Database Supabase Button */}
+          <button
+            type="button"
+            onClick={onOpenDatabaseModal}
+            title="Paramètres Supabase & Synchronisation Cloud"
+            className="bg-emerald-800/80 hover:bg-emerald-700 text-emerald-100 px-3 py-1.5 rounded-2xl text-xs items-center space-x-1.5 transition-all border border-emerald-500/40 font-semibold flex"
+          >
+            <span className={`w-2 h-2 rounded-full ${syncState?.status === 'CONNECTED' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+            <span className="hidden lg:inline">Supabase</span>
           </button>
 
           {/* Home Page / Déconnexion */}

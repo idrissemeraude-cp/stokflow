@@ -8,23 +8,38 @@ import {
   User, 
   Store, 
   ArrowRight, 
-  ShieldCheck,
-  Check,
-  Crown,
-  Award,
-  Zap,
-  MapPin,
-  HelpCircle
+  ShieldCheck, 
+  Check, 
+  Crown, 
+  Award, 
+  Zap, 
+  MapPin, 
+  HelpCircle,
+  Database,
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 
 import { emptyAllData } from '../utils/storage';
-import { getSupabaseClient } from '../services/supabaseClient';
+import { getSupabaseClient, getSupabaseConfig } from '../services/supabaseClient';
+import { dbService } from '../services/dbService';
 
-const AuthModal = ({ initialMode = 'login', initialPlan = 'PRO', onClose, onLoginSuccess }) => {
+const AuthModal = ({ 
+  initialMode = 'login', 
+  initialPlan = 'PRO', 
+  onClose, 
+  onLoginSuccess,
+  onOpenDatabaseConfig 
+}) => {
   const [mode, setMode] = useState(initialMode); // 'login' | 'register'
-  const [selectedPlan, setSelectedPlan] = useState(initialPlan); // 'FREE' | 'PRO' | 'VIP'
+  const [selectedPlan, setSelectedPlan] = useState(initialPlan); // 'FREE' | 'PRO' | 'ULTRA_PRO'
   const [isLoading, setIsLoading] = useState(false);
+  const [loginMethod, setLoginMethod] = useState('email'); // 'email' | 'phone'
+  const [showResendEmail, setShowResendEmail] = useState(false);
   
+  const supabaseConfig = getSupabaseConfig();
+  const isSupabaseReady = supabaseConfig.isConfigured;
+
   // Form State
   const [formData, setFormData] = useState({
     ownerName: '',
@@ -36,90 +51,219 @@ const AuthModal = ({ initialMode = 'login', initialPlan = 'PRO', onClose, onLogi
   });
 
   const [errorMsg, setErrorMsg] = useState('');
+  const [infoMsg, setInfoMsg] = useState('');
+
+  // Nettoyage de l'identifiant pour Supabase Auth
+  const getEffectiveEmail = () => {
+    if (mode === 'login') {
+      if (loginMethod === 'email') {
+        return formData.email.trim().toLowerCase();
+      }
+      const cleanDigits = formData.phone.replace(/\D/g, '');
+      return cleanDigits ? `user_${cleanDigits}@gmail.com` : '';
+    }
+    if (formData.email.trim()) {
+      return formData.email.trim().toLowerCase();
+    }
+    const cleanDigits = formData.phone.replace(/\D/g, '');
+    return cleanDigits ? `user_${cleanDigits}@gmail.com` : '';
+  };
+
+  const handleResendConfirmation = async () => {
+    const client = getSupabaseClient();
+    const targetEmail = getEffectiveEmail();
+    if (!client || !targetEmail) {
+      setErrorMsg('Veuillez renseigner une adresse email valide.');
+      return;
+    }
+    setIsLoading(true);
+    setErrorMsg('');
+    setInfoMsg('');
+    try {
+      const { error } = await client.auth.resend({
+        type: 'signup',
+        email: targetEmail
+      });
+      if (error) {
+        setErrorMsg(`Erreur lors du renvoi: ${error.message}`);
+      } else {
+        setInfoMsg(`✅ Un nouvel email de confirmation a été envoyé à ${targetEmail}.`);
+        setShowResendEmail(false);
+      }
+    } catch (err) {
+      setErrorMsg(`Erreur: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
+    setInfoMsg('');
+    setShowResendEmail(false);
     setIsLoading(true);
 
     const client = getSupabaseClient();
     const cleanPhone = formData.phone.trim();
-    const cleanEmail = formData.email.trim() || `${cleanPhone.replace(/\D/g, '') || 'user'}@stockflow.com`;
+    const effectiveEmail = getEffectiveEmail();
+
+    if (!formData.password || formData.password.length < 6) {
+      setErrorMsg('Le mot de passe doit comporter au moins 6 caractères.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!client) {
+      setErrorMsg("⚠️ L'application n'est pas encore connectée à Supabase. Cliquez sur 'Paramètres Supabase' ci-dessus pour renseigner votre Clé API Anon.");
+      setIsLoading(false);
+      return;
+    }
 
     try {
       if (mode === 'register') {
-        if (!formData.storeName.trim() || !cleanPhone || !formData.password.trim()) {
-          setErrorMsg('Veuillez renseigner le nom de la boutique, le téléphone WhatsApp et un mot de passe.');
+        if (!formData.storeName.trim() || (!cleanPhone && !formData.email.trim())) {
+          setErrorMsg('Veuillez renseigner le nom de la boutique et au moins un téléphone ou email.');
           setIsLoading(false);
           return;
         }
 
-        // Tenter l'inscription Supabase Auth si configuré
+        let createdUserId = `user-${Date.now()}`;
+
+        // Inscription Supabase Auth si configuré
         if (client) {
-          try {
-            await client.auth.signUp({
-              email: cleanEmail,
-              password: formData.password,
-              options: {
-                data: {
-                  owner_name: formData.ownerName.trim() || 'Commerçant',
-                  store_name: formData.storeName.trim(),
-                  phone: cleanPhone,
-                  city: formData.city.trim() || 'Ouagadougou, Burkina Faso',
-                  plan: selectedPlan
-                }
+          const { data, error } = await client.auth.signUp({
+            email: effectiveEmail,
+            password: formData.password,
+            options: {
+              data: {
+                owner_name: formData.ownerName.trim() || 'Commerçant',
+                store_name: formData.storeName.trim(),
+                phone: cleanPhone,
+                email: formData.email.trim() || effectiveEmail,
+                city: formData.city.trim() || 'Ouagadougou, Burkina Faso',
+                plan: selectedPlan,
+                role: 'ADMIN'
               }
+            }
+          });
+
+          if (error) {
+            console.error('Erreur Supabase SignUp:', error);
+            if (error.message.includes('already registered') || error.message.includes('User already exists')) {
+              setErrorMsg('Ce compte existe déjà. Veuillez cliquer sur "Se Connecter" ci-dessus.');
+            } else if (error.message.includes('rate limit')) {
+              setErrorMsg('Trop de tentatives. Veuillez patienter une minute avant de réessayer.');
+            } else {
+              setErrorMsg(`Erreur Supabase: ${error.message}`);
+            }
+            setIsLoading(false);
+            return;
+          }
+
+          if (data?.user) {
+            createdUserId = data.user.id;
+          }
+
+          // Si Supabase requiert la confirmation d'email
+          if (data?.user && !data?.session) {
+            setInfoMsg(`✅ Inscription réussie ! Un email de confirmation a été envoyé à ${effectiveEmail}. Cliquez sur le lien dans l'email pour activer votre compte (ou désactivez "Confirm email" dans Supabase pour vous connecter directement).`);
+            setIsLoading(false);
+            setMode('login');
+            return;
+          }
+
+          // Enregistrement explicite dans la table publique public.profiles
+          try {
+            await dbService.upsertProfile({
+              id: createdUserId,
+              email: formData.email.trim() || effectiveEmail,
+              phone: cleanPhone,
+              ownerName: formData.ownerName.trim() || 'Commerçant',
+              storeName: formData.storeName.trim(),
+              city: formData.city.trim() || 'Ouagadougou, Burkina Faso',
+              role: 'ADMIN',
+              plan: selectedPlan,
+              createdAt: new Date().toISOString()
             });
-          } catch (authErr) {
-            console.warn('Supabase Auth SignUp (ignoré si facultatif):', authErr.message);
+          } catch (profileErr) {
+            console.warn('Note insertion profile (peut être gérée par trigger):', profileErr.message);
           }
         }
 
-        // Nettoyer toutes les anciennes données de démo pour démarrer 100% à vide
+        // Nettoyer les anciennes données locales pour démarrer 100% propre
         emptyAllData();
 
         const newUser = {
+          id: createdUserId,
           ownerName: formData.ownerName.trim() || 'Commerçant',
           storeName: formData.storeName.trim(),
           city: formData.city.trim() || 'Ouagadougou, Burkina Faso',
-          email: cleanEmail,
+          email: formData.email.trim() || effectiveEmail,
           phone: cleanPhone,
           plan: selectedPlan,
+          role: 'ADMIN',
           registeredAt: new Date().toISOString()
         };
 
         onLoginSuccess(newUser, { isRegister: true });
       } else {
-        if (!cleanPhone || !formData.password.trim()) {
-          setErrorMsg('Veuillez entrer votre numéro de téléphone et mot de passe.');
+        // Mode Connexion (Login)
+        if (!effectiveEmail) {
+          setErrorMsg(loginMethod === 'email' ? 'Veuillez renseigner votre adresse email.' : 'Veuillez renseigner votre numéro de téléphone.');
           setIsLoading(false);
           return;
         }
 
-        // Tenter la connexion Supabase Auth si configuré
+        let loggedUserId = `user-${Date.now()}`;
+        let userMeta = {};
+
+        // Connexion Supabase Auth
         if (client) {
-          try {
-            await client.auth.signInWithPassword({
-              email: cleanEmail,
-              password: formData.password
-            });
-          } catch (authErr) {
-            console.warn('Supabase Auth SignIn (ignoré si local):', authErr.message);
+          const { data, error } = await client.auth.signInWithPassword({
+            email: effectiveEmail,
+            password: formData.password
+          });
+
+          if (error) {
+            console.error('Erreur Supabase SignIn:', error);
+            if (error.message.includes('Invalid login credentials')) {
+              setErrorMsg('Identifiant ou mot de passe incorrect. Vérifiez vos informations de connexion.');
+            } else if (error.message.includes('Email not confirmed')) {
+              setErrorMsg('✉️ Votre adresse email n\'a pas encore été validée. Cliquez ci-dessous pour renvoyer le lien de confirmation ou vérifiez votre boîte de réception.');
+              setShowResendEmail(true);
+            } else if (error.message.includes('rate limit')) {
+              setErrorMsg('Trop de tentatives. Veuillez patienter une minute.');
+            } else {
+              setErrorMsg(`Erreur connexion: ${error.message}`);
+            }
+            setIsLoading(false);
+            return;
+          }
+
+          if (data?.user) {
+            loggedUserId = data.user.id;
+            userMeta = data.user.user_metadata || {};
           }
         }
 
         const loggedUser = {
-          ownerName: formData.ownerName.trim() || 'Commerçant',
-          storeName: formData.storeName.trim() || 'Ma Boutique',
-          city: formData.city.trim() || 'Ouagadougou, Burkina Faso',
-          email: cleanEmail,
-          phone: cleanPhone,
-          plan: 'PRO',
+          id: loggedUserId,
+          ownerName: userMeta.owner_name || formData.ownerName.trim() || 'Commerçant',
+          storeName: userMeta.store_name || formData.storeName.trim() || 'Ma Boutique',
+          city: userMeta.city || formData.city.trim() || 'Ouagadougou, Burkina Faso',
+          email: userMeta.email || effectiveEmail,
+          phone: userMeta.phone || cleanPhone,
+          plan: userMeta.plan || 'PRO',
+          role: userMeta.role || 'ADMIN',
           registeredAt: new Date().toISOString()
         };
 
         onLoginSuccess(loggedUser, { isLogin: true });
       }
+    } catch (err) {
+      console.error('Erreur inattendue:', err);
+      setErrorMsg(`Une erreur est survenue : ${err.message || err}`);
     } finally {
       setIsLoading(false);
     }
@@ -147,15 +291,15 @@ const AuthModal = ({ initialMode = 'login', initialPlan = 'PRO', onClose, onLogi
                 StockFlow Pro
               </h2>
               <span className="text-[10px] text-emerald-200 font-semibold uppercase tracking-wider">
-                Espace Commerçant & Caisse
+                Espace Commerçant & Multi-Caisses
               </span>
             </div>
           </div>
 
           <p className="text-xs text-emerald-100/80 mt-1">
             {mode === 'login' 
-              ? 'Connectez-vous pour retrouver vos ventes, stocks et clients.' 
-              : 'Créez votre compte boutique en 30 secondes.'}
+              ? 'Connectez-vous pour retrouver vos ventes, stocks, caisses et clients.' 
+              : 'Créez votre compte boutique pour synchroniser vos appareils.'}
           </p>
 
           {/* Mode Switcher */}
@@ -185,13 +329,90 @@ const AuthModal = ({ initialMode = 'login', initialPlan = 'PRO', onClose, onLogi
           </div>
         </div>
 
+        {/* Supabase Status Banner */}
+        <div className="px-6 py-2 bg-emerald-50/60 border-b border-emerald-100 flex items-center justify-between text-[11px]">
+          <div className="flex items-center gap-1.5 font-semibold">
+            {isSupabaseReady ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-emerald-800">PostgreSQL Supabase Cloud connecté</span>
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span className="text-amber-800">Mode Local (Supabase non configuré)</span>
+              </>
+            )}
+          </div>
+          {onOpenDatabaseConfig && (
+            <button
+              type="button"
+              onClick={() => { onClose(); onOpenDatabaseConfig(); }}
+              className="text-emerald-700 underline font-bold hover:text-emerald-900 flex items-center gap-1"
+            >
+              <Database className="w-3 h-3" />
+              <span>Paramètres Supabase</span>
+            </button>
+          )}
+        </div>
+
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 bg-white">
           
+          {/* Notification Messages */}
           {errorMsg && (
-            <div className="bg-red-50 text-red-700 p-3 rounded-2xl border border-red-200 text-xs font-semibold flex items-center gap-2">
-              <X className="w-4 h-4 text-red-500 flex-shrink-0" />
-              <span>{errorMsg}</span>
+            <div className="bg-red-50 text-red-700 p-3.5 rounded-2xl border border-red-200 text-xs font-semibold flex items-start gap-2 animate-in fade-in">
+              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="leading-tight">{errorMsg}</p>
+                {showResendEmail && (
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-xl transition-all"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Renvoyer l'email de confirmation</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {infoMsg && (
+            <div className="bg-emerald-50 text-emerald-800 p-3.5 rounded-2xl border border-emerald-200 text-xs font-semibold flex items-start gap-2 animate-in fade-in">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <span className="leading-tight">{infoMsg}</span>
+            </div>
+          )}
+
+          {/* Mode Connexion : Choix Méthode Email vs Téléphone */}
+          {mode === 'login' && (
+            <div className="flex items-center p-1 bg-emerald-50/80 rounded-xl border border-emerald-200/70 mb-1">
+              <button
+                type="button"
+                onClick={() => { setLoginMethod('email'); setErrorMsg(''); }}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                  loginMethod === 'email'
+                    ? 'bg-white text-emerald-900 shadow-sm ring-1 ring-emerald-200'
+                    : 'text-gray-600 hover:text-emerald-800'
+                }`}
+              >
+                <Mail className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Par Adresse Email</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setLoginMethod('phone'); setErrorMsg(''); }}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                  loginMethod === 'phone'
+                    ? 'bg-white text-emerald-900 shadow-sm ring-1 ring-emerald-200'
+                    : 'text-gray-600 hover:text-emerald-800'
+                }`}
+              >
+                <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Par Téléphone</span>
+              </button>
             </div>
           )}
 
@@ -200,11 +421,9 @@ const AuthModal = ({ initialMode = 'login', initialPlan = 'PRO', onClose, onLogi
               {/* Plan Choice Selector */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                  1. Choisissez votre Formule d'Abonnement :
+                  1. Formule d'Abonnement :
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  
-                  {/* Option Gratuit */}
                   <div 
                     onClick={() => setSelectedPlan('FREE')}
                     className={`cursor-pointer p-3 rounded-2xl border text-center transition-all ${
@@ -218,7 +437,6 @@ const AuthModal = ({ initialMode = 'login', initialPlan = 'PRO', onClose, onLogi
                     <p className="text-[9px] text-gray-500 mt-0.5">Essai 15 articles</p>
                   </div>
 
-                  {/* Option Pro 5000 */}
                   <div 
                     onClick={() => setSelectedPlan('PRO')}
                     className={`cursor-pointer p-3 rounded-2xl border text-center transition-all relative ${
@@ -235,7 +453,6 @@ const AuthModal = ({ initialMode = 'login', initialPlan = 'PRO', onClose, onLogi
                     <p className="text-[9px] text-emerald-700 mt-0.5">Tout illimité</p>
                   </div>
 
-                  {/* Option Ultra Pro 15000 */}
                   <div 
                     onClick={() => setSelectedPlan('ULTRA_PRO')}
                     className={`cursor-pointer p-3 rounded-2xl border text-center transition-all relative ${
@@ -245,65 +462,55 @@ const AuthModal = ({ initialMode = 'login', initialPlan = 'PRO', onClose, onLogi
                     }`}
                   >
                     <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-amber-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
-                      Vidéos Démo
+                      Multi-Caisses
                     </span>
                     <p className="text-xs font-bold text-gray-900">Ultra Pro</p>
                     <p className="text-[11px] font-extrabold text-amber-700 mt-1">15 000 F</p>
-                    <p className="text-[9px] text-amber-800 mt-0.5">Vidéos Démo & VIP</p>
+                    <p className="text-[9px] text-amber-800 mt-0.5">Multi-caisses VIP</p>
                   </div>
-
                 </div>
               </div>
 
-              {/* Notice paiement si plan payant */}
-              {selectedPlan !== 'FREE' && (
-                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl text-[11px] text-emerald-900 space-y-1">
-                  <p className="font-bold flex items-center gap-1">
-                    <span>💡 Règlement par Mobile Money (Orange Money / Wave / Moov) :</span>
-                  </p>
-                  <p className="text-gray-600 leading-tight">
-                    Vous pourrez régler votre abonnement ({selectedPlan === 'PRO' ? '5 000 FCFA' : '15 000 FCFA'}) au <strong>+226 60 55 77 77</strong>. L'activation est immédiate.
-                  </p>
+              {/* Informations Boutique */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Nom du Gérant *
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="ex: Fatoumata Kaboré"
+                      value={formData.ownerName}
+                      onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
+                      className="w-full pl-10 pr-3 py-2 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
                 </div>
-              )}
 
-              {/* Form Inputs */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Nom & Prénom du Gérant
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="ex: Fatoumata Kaboré"
-                    value={formData.ownerName}
-                    onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Nom de la Boutique / Commerce *
-                </label>
-                <div className="relative">
-                  <Store className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="ex: Boutique Élégance Faso"
-                    value={formData.storeName}
-                    onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500"
-                  />
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Nom de la Boutique *
+                  </label>
+                  <div className="relative">
+                    <Store className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="ex: Boutique Faso Mode"
+                      value={formData.storeName}
+                      onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
+                      className="w-full pl-10 pr-3 py-2 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Ville / Pays
+                  Ville & Pays
                 </label>
                 <div className="relative">
                   <MapPin className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -312,39 +519,64 @@ const AuthModal = ({ initialMode = 'login', initialPlan = 'PRO', onClose, onLogi
                     placeholder="ex: Ouagadougou, Burkina Faso"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500"
+                    className="w-full pl-10 pr-4 py-2 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
             </>
           )}
 
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-              Numéro de Téléphone WhatsApp *
-            </label>
-            <div className="relative">
-              <Phone className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="tel"
-                required
-                placeholder="ex: +226 70 00 11 22"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full pl-10 pr-4 py-2.5 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500 font-semibold"
-              />
+          {/* Saisie Email (Connexion Email ou Inscription) */}
+          {(mode === 'register' || (mode === 'login' && loginMethod === 'email')) && (
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                Adresse Email {mode === 'register' ? '(pour vérification & connexion)' : '*'}
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="email"
+                  required={mode === 'login' && loginMethod === 'email'}
+                  placeholder="ex: gerant@maboutique.com ou votre_email@gmail.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
+          {/* Saisie Téléphone (Connexion Téléphone ou Inscription) */}
+          {(mode === 'register' || (mode === 'login' && loginMethod === 'phone')) && (
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                Numéro Téléphone / WhatsApp {mode === 'register' && !formData.email ? '*' : ''}
+              </label>
+              <div className="relative">
+                <Phone className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="tel"
+                  required={mode === 'login' && loginMethod === 'phone'}
+                  placeholder="ex: +226 70 00 11 22 ou 70001122"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500 font-semibold"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Mot de Passe */}
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-              Mot de Passe *
+              Mot de Passe (min. 6 caractères) *
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
                 required
+                minLength={6}
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -353,31 +585,45 @@ const AuthModal = ({ initialMode = 'login', initialPlan = 'PRO', onClose, onLogi
             </div>
           </div>
 
+          {/* Bouton de Soumission */}
           <button
             type="submit"
-            className="w-full btn-magnetic bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3.5 rounded-2xl text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all mt-6"
+            disabled={isLoading}
+            className="w-full btn-magnetic bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3.5 rounded-2xl text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all mt-4 disabled:opacity-50"
           >
-            <span>{mode === 'login' ? 'Accéder à mon Compte' : 'Valider mon Inscription'}</span>
-            <ArrowRight className="w-4 h-4" />
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Vérification en cours...</span>
+              </>
+            ) : (
+              <>
+                <span>{mode === 'login' ? 'Accéder à mon Compte Supabase' : 'Créer & Enregistrer mon Compte'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
 
-          {/* Direct Demo Link */}
-          <div className="pt-3 text-center border-t border-gray-100">
+          {/* Démo Directe */}
+          <div className="pt-3 text-center border-t border-gray-100 flex items-center justify-center gap-4">
             <button
               type="button"
               onClick={() => {
                 onClose();
                 onLoginSuccess({
+                  id: 'demo-user-1',
                   ownerName: 'Mme Fatoumata Kaboré',
                   storeName: 'Boutique Élégance Faso',
                   city: 'Ouagadougou, Burkina Faso',
-                  phone: '+226 70 00 11 22'
+                  phone: '+226 70 00 11 22',
+                  role: 'ADMIN',
+                  plan: 'PRO'
                 }, { isDemo: true });
               }}
               className="text-xs font-bold text-emerald-700 hover:text-emerald-900 transition-colors inline-flex items-center gap-1"
             >
               <Zap className="w-3.5 h-3.5" />
-              <span>Tester directement avec les données de Démo</span>
+              <span>Tester en Mode Démo</span>
             </button>
           </div>
 

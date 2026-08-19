@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { saveUserRole, saveSecurityPin } from '../utils/storage';
 
-const RoleSwitcherModal = ({ currentRole, securityPin, onRoleChange, onClose }) => {
+const RoleSwitcherModal = ({ currentRole, securityPin, onRoleChange, onClose, onOpenUsersModal }) => {
   const [targetRole, setTargetRole] = useState(currentRole);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
@@ -147,14 +147,26 @@ const RoleSwitcherModal = ({ currentRole, securityPin, onRoleChange, onClose }) 
             )}
 
             <div className="pt-2 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setIsChangingPin(true)}
-                className="text-[11px] font-semibold text-emerald-700 hover:underline flex items-center gap-1"
-              >
-                <Key className="w-3 h-3" />
-                <span>Modifier code PIN</span>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsChangingPin(true)}
+                  className="text-[11px] font-semibold text-emerald-700 hover:underline flex items-center gap-1"
+                >
+                  <Key className="w-3 h-3" />
+                  <span>Modifier code PIN</span>
+                </button>
+
+                {onOpenUsersModal && (
+                  <button
+                    type="button"
+                    onClick={() => { onClose(); onOpenUsersModal(); }}
+                    className="text-[11px] font-semibold text-emerald-700 hover:underline flex items-center gap-1"
+                  >
+                    <span>👥 Gérer l'équipe</span>
+                  </button>
+                )}
+              </div>
 
               <button
                 type="submit"

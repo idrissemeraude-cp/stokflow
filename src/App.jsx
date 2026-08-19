@@ -19,6 +19,7 @@ import CsvImportExportModal from './components/CsvImportExportModal';
 import RoleSwitcherModal from './components/RoleSwitcherModal';
 import SupportModal from './components/SupportModal';
 import DatabaseSettingsModal from './components/DatabaseSettingsModal';
+import UsersModal from './components/UsersModal';
 
 import {
   loadStoredData,
@@ -37,7 +38,7 @@ import {
 } from './utils/storage';
 import { syncEngine } from './services/syncEngine';
 import { dbService, mappers } from './services/dbService';
-import { getSupabaseConfig } from './services/supabaseClient';
+import { getSupabaseConfig, getSupabaseClient } from './services/supabaseClient';
 
 export function App() {
   // Global View State ('landing' | 'dashboard')
@@ -76,6 +77,10 @@ export function App() {
     city: 'Ouagadougou, Burkina Faso'
   });
 
+  // Profiles & Multi-User State
+  const [profiles, setProfiles] = useState([]);
+  const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
+
   // Modals State
   const [creditModalSale, setCreditModalSale] = useState(null);
   const [currentReceiptSale, setCurrentReceiptSale] = useState(null);
@@ -84,7 +89,99 @@ export function App() {
   const [isDatabaseModalOpen, setIsDatabaseModalOpen] = useState(false);
   const [syncState, setSyncState] = useState(() => syncEngine.getState());
 
-  // Load data on mount and initialize Supabase realtime sync
+  // Cloud Import Handler
+  const handleCloudDataImported = (cloudData) => {
+    if (!cloudData) return;
+    if (cloudData.products) {
+      setProducts(cloudData.products);
+      saveProducts(cloudData.products);
+    }
+    if (cloudData.clients) {
+      setClients(cloudData.clients);
+      saveClients(cloudData.clients);
+    }
+    if (cloudData.sales) {
+      setSales(cloudData.sales);
+      saveSales(cloudData.sales);
+    }
+    if (cloudData.payments) {
+      setPayments(cloudData.payments);
+      savePayments(cloudData.payments);
+    }
+    if (cloudData.expenses) {
+      setExpenses(cloudData.expenses);
+      saveExpenses(cloudData.expenses);
+    }
+    if (cloudData.cashClosings) {
+      setCashClosings(cloudData.cashClosings);
+      saveCashClosings(cloudData.cashClosings);
+    }
+    if (cloudData.waLogs) {
+      setWaLogs(cloudData.waLogs);
+      saveWaLogs(cloudData.waLogs);
+    }
+    if (cloudData.storeInfo) {
+      setStoreInfo(cloudData.storeInfo);
+      saveStoreInfo(cloudData.storeInfo);
+    }
+    if (cloudData.profiles) {
+      setProfiles(cloudData.profiles);
+    }
+  };
+
+  const handleClearAllData = () => {
+    if (!window.confirm('Voulez-vous vraiment effacer toutes les données locales ?')) return;
+    emptyAllData();
+    setProducts([]);
+    setClients([]);
+    setSales([]);
+    setPayments([]);
+    setWaLogs([]);
+    setExpenses([]);
+    setCashClosings([]);
+  };
+
+  const handleLoadDemoData = () => {
+    const demo = loadDemoData();
+    setProducts(demo.products);
+    setClients(demo.clients);
+    setSales(demo.sales);
+    setPayments(demo.payments);
+    setWaLogs(demo.waLogs);
+    setExpenses(demo.expenses);
+    setCashClosings(demo.cashClosings);
+    setStoreInfo(demo.storeInfo);
+  };
+
+  const handleRefreshProfiles = async () => {
+    try {
+      const fetched = await dbService.fetchProfiles();
+      if (fetched) setProfiles(fetched);
+    } catch (err) {
+      console.warn('Erreur actualisation profils:', err);
+    }
+  };
+
+  const handleSwitchUser = (selectedProfile) => {
+    setCurrentUser(selectedProfile);
+    localStorage.setItem('stockflow_user', JSON.stringify(selectedProfile));
+    if (selectedProfile.role) {
+      setUserRole(selectedProfile.role);
+      saveUserRole(selectedProfile.role);
+    }
+    if (selectedProfile.storeName) {
+      setStoreInfo(prev => ({
+        ...prev,
+        name: selectedProfile.storeName,
+        ownerName: selectedProfile.ownerName || prev.ownerName,
+        phone: selectedProfile.phone || prev.phone,
+        city: selectedProfile.city || prev.city
+      }));
+    }
+    setIsUsersModalOpen(false);
+  };
+
+  // Load data on mount and initialize Supabase realtime sync & Auth listener
   useEffect(() => {
     const loaded = loadStoredData();
     setProducts(loaded.products || []);
@@ -97,6 +194,50 @@ export function App() {
     setUserRole(loaded.userRole || 'ADMIN');
     setSecurityPin(loaded.securityPin || '1234');
     if (loaded.storeInfo) setStoreInfo(loaded.storeInfo);
+
+    // Initialiser le client Supabase Auth & Session listener
+    const client = getSupabaseClient();
+    if (client) {
+      client.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          const meta = session.user.user_metadata || {};
+          const userObj = {
+            id: session.user.id,
+            email: session.user.email,
+            phone: meta.phone || '',
+            ownerName: meta.owner_name || 'Commerçant',
+            storeName: meta.store_name || 'Ma Boutique',
+            city: meta.city || 'Ouagadougou, Burkina Faso',
+            plan: meta.plan || 'PRO',
+            role: meta.role || 'ADMIN'
+          };
+          setCurrentUser(prev => prev || userObj);
+          if (meta.role) setUserRole(meta.role);
+        }
+      }).catch(err => console.warn('Supabase getSession warning:', err));
+
+      const { data: authListener } = client.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT') {
+          setCurrentUser(null);
+          localStorage.removeItem('stockflow_user');
+        } else if (session?.user) {
+          const meta = session.user.user_metadata || {};
+          const userObj = {
+            id: session.user.id,
+            email: session.user.email,
+            phone: meta.phone || '',
+            ownerName: meta.owner_name || 'Commerçant',
+            storeName: meta.store_name || 'Ma Boutique',
+            city: meta.city || 'Ouagadougou, Burkina Faso',
+            plan: meta.plan || 'PRO',
+            role: meta.role || 'ADMIN'
+          };
+          setCurrentUser(userObj);
+          localStorage.setItem('stockflow_user', JSON.stringify(userObj));
+          if (meta.role) setUserRole(meta.role);
+        }
+      });
+    }
 
     // Initialiser le moteur de synchronisation
     syncEngine.init().then(async () => {
@@ -123,6 +264,7 @@ export function App() {
         if (entity === 'products') setProducts(prev => prev.filter(p => p.id !== id));
         if (entity === 'clients') setClients(prev => prev.filter(c => c.id !== id));
         if (entity === 'expenses') setExpenses(prev => prev.filter(e => e.id !== id));
+        if (entity === 'profiles') setProfiles(prev => prev.filter(p => p.id !== id));
       } else if (data) {
         if (entity === 'products') {
           setProducts(prev => {
@@ -166,6 +308,14 @@ export function App() {
             saveCashClosings(updated);
             return updated;
           });
+        } else if (entity === 'profiles') {
+          setProfiles(prev => {
+            const exists = prev.some(p => p.id === data.id);
+            return exists ? prev.map(p => p.id === data.id ? data : p) : [data, ...prev];
+          });
+        } else if (entity === 'storeInfo') {
+          setStoreInfo(data);
+          saveStoreInfo(data);
         }
       }
     });
@@ -181,6 +331,10 @@ export function App() {
     setCurrentUser(userPayload);
     localStorage.setItem('stockflow_user', JSON.stringify(userPayload));
     localStorage.setItem('stockflow_visited', 'true');
+    if (userPayload.role) {
+      setUserRole(userPayload.role);
+      saveUserRole(userPayload.role);
+    }
     setAuthModalMode(null);
     setCurrentView('dashboard');
 
@@ -221,6 +375,7 @@ export function App() {
 
       // Enregistrer la boutique sur Supabase si connecté
       syncEngine.enqueue('UPSERT', 'store_info', mappers.storeInfoToRow(newStoreInfo));
+      await handleRefreshProfiles();
       return;
     }
 
@@ -512,42 +667,6 @@ export function App() {
     syncEngine.enqueue('UPSERT', 'whatsapp_logs', mappers.waLogToRow(logPayload));
   };
 
-  // Restauration complète depuis le Cloud
-  const handleCloudDataImported = (cloudData) => {
-    if (cloudData.products) {
-      setProducts(cloudData.products);
-      saveProducts(cloudData.products);
-    }
-    if (cloudData.clients) {
-      setClients(cloudData.clients);
-      saveClients(cloudData.clients);
-    }
-    if (cloudData.sales) {
-      setSales(cloudData.sales);
-      saveSales(cloudData.sales);
-    }
-    if (cloudData.payments) {
-      setPayments(cloudData.payments);
-      savePayments(cloudData.payments);
-    }
-    if (cloudData.expenses) {
-      setExpenses(cloudData.expenses);
-      saveExpenses(cloudData.expenses);
-    }
-    if (cloudData.cashClosings) {
-      setCashClosings(cloudData.cashClosings);
-      saveCashClosings(cloudData.cashClosings);
-    }
-    if (cloudData.waLogs) {
-      setWaLogs(cloudData.waLogs);
-      saveWaLogs(cloudData.waLogs);
-    }
-    if (cloudData.storeInfo) {
-      setStoreInfo(cloudData.storeInfo);
-      saveStoreInfo(cloudData.storeInfo);
-    }
-  };
-
   // Export JSON Backup
   const handleExportData = () => {
     const fullBackup = {
@@ -569,45 +688,6 @@ export function App() {
     a.download = `stockflow_backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  // Vider complètement toutes les données locales
-  const handleClearAllData = () => {
-    if (userRole === 'CASHIER') {
-      alert('⛔ Action non autorisée en mode Caissier.');
-      return;
-    }
-    if (window.confirm('Voulez-vous vraiment vider toutes les données (produits, ventes, clients, dépenses) ? Vos tableaux de bord seront remis à zéro.')) {
-      emptyAllData();
-      setProducts([]);
-      setClients([]);
-      setSales([]);
-      setPayments([]);
-      setWaLogs([]);
-      setExpenses([]);
-      setCashClosings([]);
-      alert('✅ Tableaux de bord remis à zéro (0 article, 0 vente).');
-    }
-  };
-
-  // Charger les données d'exemple de démonstration
-  const handleLoadDemoData = () => {
-    if (userRole === 'CASHIER') {
-      alert('⛔ Action non autorisée en mode Caissier.');
-      return;
-    }
-    if (window.confirm('Voulez-vous charger les données d\'exemple de démonstration ?')) {
-      const demo = loadDemoData();
-      setProducts(demo.products);
-      setClients(demo.clients);
-      setSales(demo.sales);
-      setPayments(demo.payments);
-      setWaLogs(demo.waLogs);
-      setExpenses(demo.expenses);
-      setCashClosings(demo.cashClosings);
-      setStoreInfo(demo.storeInfo);
-      alert('✅ Données de démonstration chargées avec succès !');
-    }
   };
 
   // Reset to initial demo data (alias)
@@ -643,6 +723,8 @@ export function App() {
             onOpenRoleModal={() => setIsRoleModalOpen(true)}
             onOpenCsvModal={() => setIsCsvModalOpen(true)}
             onOpenDatabaseModal={() => setIsDatabaseModalOpen(true)}
+            onOpenUsersModal={() => setIsUsersModalOpen(true)}
+            userCount={profiles.length || 1}
             syncState={syncState}
             isSidebarCollapsed={isSidebarCollapsed}
             onToggleSidebar={() => setIsSidebarCollapsed(prev => !prev)}
@@ -762,6 +844,7 @@ export function App() {
           initialMode={authModalMode}
           onClose={() => setAuthModalMode(null)}
           onLoginSuccess={handleLoginSuccess}
+          onOpenDatabaseConfig={() => setIsDatabaseModalOpen(true)}
         />
       )}
 
@@ -806,8 +889,19 @@ export function App() {
             saveUserRole(newRole);
           }}
           onClose={() => setIsRoleModalOpen(false)}
+          onOpenUsersModal={() => setIsUsersModalOpen(true)}
         />
       )}
+
+      {/* Users & Team Management Modal */}
+      <UsersModal
+        isOpen={isUsersModalOpen}
+        onClose={() => setIsUsersModalOpen(false)}
+        currentUser={currentUser}
+        profiles={profiles}
+        onSwitchUser={handleSwitchUser}
+        onRefreshProfiles={handleRefreshProfiles}
+      />
 
       {/* Support & Assistance Modal */}
       <SupportModal

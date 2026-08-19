@@ -2,14 +2,32 @@
 -- 🚀 SCHÉMA DE BASE DE DONNÉES POSTGRESQL / SUPABASE - STOCKFLOW PRO (FASOMODE)
 -- ==============================================================================
 -- Exécutez ce script dans l'éditeur SQL de votre projet Supabase (SQL Editor).
--- Il crée les 8 tables métier, les index de performance, les politiques de sécurité (RLS)
--- et active la synchronisation temps réel pour le multi-caisses.
+-- Il crée les tables métier, la gestion des utilisateurs & profils (profiles),
+-- les index, les politiques de sécurité (RLS) et active Supabase Realtime.
 -- ==============================================================================
 
 -- 1. EXTENSIONS
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. TABLE DES PRODUITS / STOCK
+-- 2. TABLE DES PROFILS & UTILISATEURS (Gérants, Caissiers, Équipe)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id TEXT PRIMARY KEY,
+    email TEXT,
+    phone TEXT,
+    owner_name TEXT NOT NULL DEFAULT 'Commerçant',
+    store_name TEXT NOT NULL DEFAULT 'Ma Boutique',
+    city TEXT DEFAULT 'Ouagadougou, Burkina Faso',
+    role TEXT NOT NULL DEFAULT 'ADMIN', -- 'ADMIN', 'CASHIER', 'MANAGER'
+    plan TEXT NOT NULL DEFAULT 'PRO',    -- 'FREE', 'PRO', 'ULTRA_PRO'
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
+CREATE INDEX IF NOT EXISTS idx_profiles_phone ON public.profiles(phone);
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
+
+-- 3. TABLE DES PRODUITS / STOCK
 CREATE TABLE IF NOT EXISTS public.products (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -25,11 +43,10 @@ CREATE TABLE IF NOT EXISTS public.products (
     updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Index pour recherche rapide par code-barre et catégorie
 CREATE INDEX IF NOT EXISTS idx_products_barcode ON public.products(barcode);
 CREATE INDEX IF NOT EXISTS idx_products_category ON public.products(category);
 
--- 3. TABLE DES CLIENTS
+-- 4. TABLE DES CLIENTS
 CREATE TABLE IF NOT EXISTS public.clients (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -41,7 +58,7 @@ CREATE TABLE IF NOT EXISTS public.clients (
 
 CREATE INDEX IF NOT EXISTS idx_clients_phone ON public.clients(phone);
 
--- 4. TABLE DES VENTES & COMMANDES (POS)
+-- 5. TABLE DES VENTES & COMMANDES (POS)
 CREATE TABLE IF NOT EXISTS public.sales (
     id TEXT PRIMARY KEY,
     client_id TEXT,
@@ -63,7 +80,7 @@ CREATE INDEX IF NOT EXISTS idx_sales_due_date ON public.sales(due_date);
 CREATE INDEX IF NOT EXISTS idx_sales_status ON public.sales(status);
 CREATE INDEX IF NOT EXISTS idx_sales_created_at ON public.sales(created_at DESC);
 
--- 5. TABLE DES PAIEMENTS / RÈGLEMENTS DE CRÉANCE
+-- 6. TABLE DES PAIEMENTS / RÈGLEMENTS DE CRÉANCE
 CREATE TABLE IF NOT EXISTS public.payments (
     id TEXT PRIMARY KEY,
     sale_id TEXT,
@@ -80,7 +97,7 @@ CREATE TABLE IF NOT EXISTS public.payments (
 CREATE INDEX IF NOT EXISTS idx_payments_sale_id ON public.payments(sale_id);
 CREATE INDEX IF NOT EXISTS idx_payments_date ON public.payments(date DESC);
 
--- 6. TABLE DES DÉPENSES D'EXPLOITATION
+-- 7. TABLE DES DÉPENSES D'EXPLOITATION
 CREATE TABLE IF NOT EXISTS public.expenses (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
@@ -95,7 +112,7 @@ CREATE TABLE IF NOT EXISTS public.expenses (
 CREATE INDEX IF NOT EXISTS idx_expenses_date ON public.expenses(date DESC);
 CREATE INDEX IF NOT EXISTS idx_expenses_category ON public.expenses(category);
 
--- 7. TABLE DES CLÔTURES DE CAISSE
+-- 8. TABLE DES CLÔTURES DE CAISSE
 CREATE TABLE IF NOT EXISTS public.cash_closings (
     id TEXT PRIMARY KEY,
     date DATE DEFAULT CURRENT_DATE NOT NULL,
@@ -116,7 +133,7 @@ CREATE TABLE IF NOT EXISTS public.cash_closings (
 
 CREATE INDEX IF NOT EXISTS idx_cash_closings_date ON public.cash_closings(date DESC);
 
--- 8. TABLE DU JOURNAL WHATSAPP & RELANCES
+-- 9. TABLE DU JOURNAL WHATSAPP & RELANCES
 CREATE TABLE IF NOT EXISTS public.whatsapp_logs (
     id TEXT PRIMARY KEY,
     client_id TEXT,
@@ -129,7 +146,7 @@ CREATE TABLE IF NOT EXISTS public.whatsapp_logs (
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 9. TABLE DES PARAMÈTRES DE LA BOUTIQUE
+-- 10. TABLE DES PARAMÈTRES DE LA BOUTIQUE
 CREATE TABLE IF NOT EXISTS public.store_info (
     id TEXT PRIMARY KEY DEFAULT 'default_store',
     name TEXT NOT NULL DEFAULT 'StockFlow Pro',
@@ -139,7 +156,6 @@ CREATE TABLE IF NOT EXISTS public.store_info (
     updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Insertion des paramètres par défaut de la boutique
 INSERT INTO public.store_info (id, name, owner_name, phone, city)
 VALUES ('default_store', 'StockFlow Pro', 'Gérant', '+22600000000', 'Ouagadougou, Burkina Faso')
 ON CONFLICT (id) DO NOTHING;
@@ -147,9 +163,8 @@ ON CONFLICT (id) DO NOTHING;
 -- ==============================================================================
 -- 🔒 SÉCURITÉ & ROW LEVEL SECURITY (RLS)
 -- ==============================================================================
--- Active RLS sur toutes les tables et autorise les opérations pour les clients
--- disposant de la clé anonyme (Anon) ou authentifiés.
 
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
@@ -159,7 +174,8 @@ ALTER TABLE public.cash_closings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.whatsapp_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.store_info ENABLE ROW LEVEL SECURITY;
 
--- Politiques d'accès complet (CRUD) avec clé API Anon
+-- Politiques d'accès complet (CRUD)
+CREATE POLICY "Acces total profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Acces total produits" ON public.products FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Acces total clients" ON public.clients FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Acces total ventes" ON public.sales FOR ALL USING (true) WITH CHECK (true);
@@ -170,12 +186,46 @@ CREATE POLICY "Acces total logs_whatsapp" ON public.whatsapp_logs FOR ALL USING 
 CREATE POLICY "Acces total store_info" ON public.store_info FOR ALL USING (true) WITH CHECK (true);
 
 -- ==============================================================================
+-- 🔄 SYNCHRONISATION AUTOMATIQUE SUPABASE AUTH -> PUBLIC.PROFILES
+-- ==============================================================================
+-- Déclencheur automatique lors de la création d'un utilisateur dans auth.users
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, phone, owner_name, store_name, city, role, plan)
+  VALUES (
+    new.id::text,
+    new.email,
+    COALESCE(new.raw_user_meta_data->>'phone', ''),
+    COALESCE(new.raw_user_meta_data->>'owner_name', 'Commerçant'),
+    COALESCE(new.raw_user_meta_data->>'store_name', 'Ma Boutique'),
+    COALESCE(new.raw_user_meta_data->>'city', 'Ouagadougou, Burkina Faso'),
+    COALESCE(new.raw_user_meta_data->>'role', 'ADMIN'),
+    COALESCE(new.raw_user_meta_data->>'plan', 'PRO')
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    phone = COALESCE(NULLIF(EXCLUDED.phone, ''), public.profiles.phone),
+    owner_name = COALESCE(NULLIF(EXCLUDED.owner_name, ''), public.profiles.owner_name),
+    store_name = COALESCE(NULLIF(EXCLUDED.store_name, ''), public.profiles.store_name),
+    city = COALESCE(NULLIF(EXCLUDED.city, ''), public.profiles.city),
+    updated_at = timezone('utc'::text, now());
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT OR UPDATE ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- ==============================================================================
 -- ⚡ ACTIVATION DU TEMPS RÉEL (SUPABASE REALTIME)
 -- ==============================================================================
--- Permet la synchronisation automatique instantanée entre tablettes et smartphones
 DO $$
 BEGIN
   BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
     ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
     ALTER PUBLICATION supabase_realtime ADD TABLE public.clients;
     ALTER PUBLICATION supabase_realtime ADD TABLE public.sales;
@@ -185,6 +235,6 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.whatsapp_logs;
     ALTER PUBLICATION supabase_realtime ADD TABLE public.store_info;
   EXCEPTION WHEN OTHERS THEN
-    NULL; -- Publication existe déjà ou tables déjà incluses
+    NULL;
   END;
 END $$;

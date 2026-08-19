@@ -285,12 +285,13 @@ export default function DatabaseSettingsModal({
             <div className="space-y-5">
               <div className="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 flex items-start gap-3">
                 <Info className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
-                <div className="text-xs text-indigo-900 leading-relaxed">
-                  <strong className="font-bold">Comment connecter votre projet Supabase :</strong>
-                  <ol className="list-decimal ml-4 mt-1.5 space-y-1">
+                <div className="text-xs text-indigo-900 leading-relaxed space-y-1.5">
+                  <strong className="font-bold">Configuration Supabase Cloud & Authentification :</strong>
+                  <ol className="list-decimal ml-4 space-y-1">
                     <li>Créez un compte gratuit sur <a href="https://supabase.com" target="_blank" rel="noreferrer" className="underline font-semibold text-indigo-700">supabase.com</a> et créez un projet.</li>
-                    <li>Dans <strong>Project Settings &gt; API</strong>, copiez l'<strong>URL du projet</strong> et la <strong>Clé Anon (public)</strong>.</li>
-                    <li>Exécutez le script SQL (onglet <em>Schéma SQL</em>) dans le <strong>SQL Editor</strong> de Supabase pour créer les 8 tables.</li>
+                    <li>Dans <strong>Project Settings &gt; API</strong>, copiez l'<strong>URL du projet</strong> et la <strong>Clé Anon (public)</strong> ci-dessous.</li>
+                    <li>Dans <strong>Authentication &gt; Providers &gt; Email</strong>, décochez <em>"Confirm email"</em> si vous souhaitez des inscriptions/connexions immédiates sans attente d'email de confirmation.</li>
+                    <li>Exécutez le script SQL (onglet <em>Schéma SQL</em>) dans le <strong>SQL Editor</strong> de Supabase pour créer les 9 tables dont <strong>profiles</strong> et les déclencheurs automatiques.</li>
                   </ol>
                 </div>
               </div>

@@ -5,6 +5,33 @@ import { getSupabaseClient } from './supabaseClient';
 // ============================================================================
 
 export const mappers = {
+  // PROFILS / UTILISATEURS
+  profileToRow: (p) => ({
+    id: p.id,
+    email: p.email || null,
+    phone: p.phone || null,
+    owner_name: p.ownerName || p.name || 'Commerçant',
+    store_name: p.storeName || 'Ma Boutique',
+    city: p.city || 'Ouagadougou, Burkina Faso',
+    role: p.role || 'ADMIN',
+    plan: p.plan || 'PRO',
+    created_at: p.createdAt ? new Date(p.createdAt).toISOString() : new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }),
+  rowToProfile: (r) => ({
+    id: r.id,
+    email: r.email || '',
+    phone: r.phone || '',
+    ownerName: r.owner_name || 'Commerçant',
+    name: r.owner_name || 'Commerçant',
+    storeName: r.store_name || 'Ma Boutique',
+    city: r.city || 'Ouagadougou, Burkina Faso',
+    role: r.role || 'ADMIN',
+    plan: r.plan || 'PRO',
+    createdAt: r.created_at ? r.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+    updatedAt: r.updated_at
+  }),
+
   // PRODUITS
   productToRow: (p) => ({
     id: p.id,
@@ -237,7 +264,8 @@ export const dbService = {
       expenses,
       cashClosings,
       waLogs,
-      storeInfo
+      storeInfo,
+      profiles
     ] = await Promise.all([
       safeFetch('products'),
       safeFetch('clients'),
@@ -246,7 +274,8 @@ export const dbService = {
       safeFetch('expenses'),
       safeFetch('cash_closings'),
       safeFetch('whatsapp_logs'),
-      safeFetch('store_info', null)
+      safeFetch('store_info', null),
+      safeFetch('profiles')
     ]);
 
     return {
@@ -257,11 +286,42 @@ export const dbService = {
       expenses: expenses.map(mappers.rowToExpense),
       cashClosings: cashClosings.map(mappers.rowToClosing),
       waLogs: waLogs.map(mappers.rowToWaLog),
-      storeInfo: storeInfo && storeInfo[0] ? mappers.rowToStoreInfo(storeInfo[0]) : null
+      storeInfo: storeInfo && storeInfo[0] ? mappers.rowToStoreInfo(storeInfo[0]) : null,
+      profiles: profiles.map(mappers.rowToProfile)
     };
   },
 
-  // Insertion ou mise à jour unitaire
+  // Récupérer uniquement les profils utilisateurs
+  async fetchProfiles() {
+    const client = getSupabaseClient();
+    if (!client) return [];
+    try {
+      const { data, error } = await client.from('profiles').select('*').order('created_at', { ascending: false });
+      if (error) {
+        console.warn('Erreur chargement profils:', error.message);
+        return [];
+      }
+      return (data || []).map(mappers.rowToProfile);
+    } catch (err) {
+      console.warn('Exception chargement profils:', err);
+      return [];
+    }
+  },
+
+  // Enregistrer ou mettre à jour un profil utilisateur
+  async upsertProfile(profileData) {
+    const client = getSupabaseClient();
+    if (!client) return { skipped: true };
+    const row = mappers.profileToRow(profileData);
+    const { data, error } = await client.from('profiles').upsert(row, { onConflict: 'id' });
+    if (error) {
+      console.warn('Erreur upsertProfile:', error.message);
+      throw error;
+    }
+    return { success: true, data };
+  },
+
+  // Insertion ou mise à jour unitaire générique
   async upsertRow(table, rowData) {
     const client = getSupabaseClient();
     if (!client) return { skipped: true };
@@ -286,7 +346,7 @@ export const dbService = {
     const client = getSupabaseClient();
     if (!client) throw new Error('Supabase n\'est pas configuré.');
 
-    const stats = { products: 0, clients: 0, sales: 0, expenses: 0, payments: 0, closings: 0 };
+    const stats = { products: 0, clients: 0, sales: 0, expenses: 0, payments: 0, closings: 0, profiles: 0 };
 
     if (localData.products?.length) {
       const rows = localData.products.map(mappers.productToRow);
@@ -333,6 +393,12 @@ export const dbService = {
     if (localData.waLogs?.length) {
       const rows = localData.waLogs.map(mappers.waLogToRow);
       await client.from('whatsapp_logs').upsert(rows, { onConflict: 'id' });
+    }
+
+    if (localData.profiles?.length) {
+      const rows = localData.profiles.map(mappers.profileToRow);
+      await client.from('profiles').upsert(rows, { onConflict: 'id' });
+      stats.profiles = rows.length;
     }
 
     if (localData.storeInfo) {
