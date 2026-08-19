@@ -128,27 +128,27 @@ const Header = ({
             <span>Excel/CSV</span>
           </button>
 
-          {/* Users & Team Management */}
-          <button
-            type="button"
-            onClick={onOpenUsersModal}
-            title="Gestion des utilisateurs & caissiers (Supabase)"
-            className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-2xl text-xs items-center space-x-1.5 transition-all border border-white/20 font-semibold flex"
-          >
-            <User className="w-3.5 h-3.5 text-emerald-300" />
-            <span className="hidden sm:inline">Équipe ({userCount || 1})</span>
-          </button>
+          {/* Users & Team Management (Admin Uniquement) */}
+          {userRole === 'ADMIN' && (
+            <button
+              type="button"
+              onClick={onOpenUsersModal}
+              title="Gestion des utilisateurs & caissiers"
+              className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-2xl text-xs items-center space-x-1.5 transition-all border border-white/20 font-semibold flex"
+            >
+              <User className="w-3.5 h-3.5 text-emerald-300" />
+              <span className="hidden sm:inline">Équipe ({userCount || 1})</span>
+            </button>
+          )}
 
-          {/* Database Supabase Button */}
-          <button
-            type="button"
-            onClick={onOpenDatabaseModal}
-            title="Paramètres Supabase & Synchronisation Cloud"
-            className="bg-emerald-800/80 hover:bg-emerald-700 text-emerald-100 px-3 py-1.5 rounded-2xl text-xs items-center space-x-1.5 transition-all border border-emerald-500/40 font-semibold flex"
+          {/* Indicateur de Synchronisation Cloud Sécurisé */}
+          <div
+            title={syncState?.status === 'CONNECTED' ? 'Synchronisation Cloud Supabase Active' : 'Mode Hors-Ligne'}
+            className="bg-emerald-950/40 text-emerald-200 px-2.5 py-1.5 rounded-2xl text-xs items-center space-x-1.5 border border-emerald-500/30 font-medium flex"
           >
             <span className={`w-2 h-2 rounded-full ${syncState?.status === 'CONNECTED' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
-            <span className="hidden lg:inline">Supabase</span>
-          </button>
+            <span className="hidden lg:inline text-[11px]">Cloud Sync</span>
+          </div>
 
           {/* Home Page / Déconnexion */}
           <button

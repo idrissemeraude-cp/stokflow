@@ -329,31 +329,16 @@ const AuthModal = ({
           </div>
         </div>
 
-        {/* Supabase Status Banner */}
-        <div className="px-6 py-2 bg-emerald-50/60 border-b border-emerald-100 flex items-center justify-between text-[11px]">
-          <div className="flex items-center gap-1.5 font-semibold">
-            {isSupabaseReady ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-emerald-800">PostgreSQL Supabase Cloud connecté</span>
-              </>
-            ) : (
-              <>
-                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                <span className="text-amber-800">Mode Local (Supabase non configuré)</span>
-              </>
-            )}
+        {/* Security Trust Badge */}
+        <div className="px-6 py-2.5 bg-emerald-50/60 border-b border-emerald-100/80 flex items-center justify-between text-[11px]">
+          <div className="flex items-center gap-1.5 font-semibold text-emerald-800">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Serveur Cloud Sécurisé & Chiffré</span>
           </div>
-          {onOpenDatabaseConfig && (
-            <button
-              type="button"
-              onClick={() => { onClose(); onOpenDatabaseConfig(); }}
-              className="text-emerald-700 underline font-bold hover:text-emerald-900 flex items-center gap-1"
-            >
-              <Database className="w-3 h-3" />
-              <span>Paramètres Supabase</span>
-            </button>
-          )}
+          <div className="flex items-center gap-1 text-emerald-700 font-medium text-[10px]">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>StockFlow Pro</span>
+          </div>
         </div>
 
         {/* Form Body */}
