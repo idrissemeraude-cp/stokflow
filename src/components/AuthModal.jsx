@@ -24,6 +24,11 @@ import { emptyAllData } from '../utils/storage';
 import { getSupabaseClient, getSupabaseConfig } from '../services/supabaseClient';
 import { dbService } from '../services/dbService';
 
+const MAX_LOGIN_ATTEMPTS = 3;
+const LOCKOUT_DURATION_MS = 60 * 1000; // 60 secondes
+const STORAGE_ATTEMPTS_KEY = 'stockflow_login_failed_attempts';
+const STORAGE_LOCKOUT_KEY = 'stockflow_login_lockout_until';
+
 const AuthModal = ({ 
   initialMode = 'login', 
   initialPlan = 'PRO', 
@@ -36,6 +41,37 @@ const AuthModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [loginMethod, setLoginMethod] = useState('email'); // 'email' | 'phone'
   const [showResendEmail, setShowResendEmail] = useState(false);
+
+  // Rate-limiting State (3 tentatives max)
+  const [failedAttempts, setFailedAttempts] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_ATTEMPTS_KEY);
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  const [lockoutSeconds, setLockoutSeconds] = useState(0);
+
+  // Timer de déverrouillage
+  useEffect(() => {
+    const checkLockout = () => {
+      const savedLockout = localStorage.getItem(STORAGE_LOCKOUT_KEY);
+      if (savedLockout) {
+        const remainingMs = parseInt(savedLockout, 10) - Date.now();
+        if (remainingMs > 0) {
+          setLockoutSeconds(Math.ceil(remainingMs / 1000));
+        } else {
+          localStorage.removeItem(STORAGE_LOCKOUT_KEY);
+          localStorage.removeItem(STORAGE_ATTEMPTS_KEY);
+          setFailedAttempts(0);
+          setLockoutSeconds(0);
+        }
+      } else {
+        setLockoutSeconds(0);
+      }
+    };
+
+    checkLockout();
+    const interval = setInterval(checkLockout, 1000);
+    return () => clearInterval(interval);
+  }, []);
   
   const supabaseConfig = getSupabaseConfig();
   const isSupabaseReady = supabaseConfig.isConfigured;
@@ -102,6 +138,13 @@ const AuthModal = ({
     setErrorMsg('');
     setInfoMsg('');
     setShowResendEmail(false);
+
+    // Vérification de verrouillage temporaire (3 tentatives max)
+    if (mode === 'login' && lockoutSeconds > 0) {
+      setErrorMsg(`⛔ Compte temporairement verrouillé suite à 3 tentatives infructueuses. Veuillez patienter encore ${lockoutSeconds} seconde${lockoutSeconds > 1 ? 's' : ''}.`);
+      return;
+    }
+
     setIsLoading(true);
 
     const client = getSupabaseClient();
@@ -115,7 +158,7 @@ const AuthModal = ({
     }
 
     if (!client) {
-      setErrorMsg("⚠️ L'application n'est pas encore connectée à Supabase. Cliquez sur 'Paramètres Supabase' ci-dessus pour renseigner votre Clé API Anon.");
+      setErrorMsg("⚠️ L'application n'est pas encore connectée à Supabase.");
       setIsLoading(false);
       return;
     }
@@ -228,7 +271,20 @@ const AuthModal = ({
           if (error) {
             console.error('Erreur Supabase SignIn:', error);
             if (error.message.includes('Invalid login credentials')) {
-              setErrorMsg('Identifiant ou mot de passe incorrect. Vérifiez vos informations de connexion.');
+              const nextFailed = failedAttempts + 1;
+              if (nextFailed >= MAX_LOGIN_ATTEMPTS) {
+                const lockoutUntil = Date.now() + LOCKOUT_DURATION_MS;
+                localStorage.setItem(STORAGE_LOCKOUT_KEY, lockoutUntil.toString());
+                localStorage.setItem(STORAGE_ATTEMPTS_KEY, String(MAX_LOGIN_ATTEMPTS));
+                setFailedAttempts(MAX_LOGIN_ATTEMPTS);
+                setLockoutSeconds(60);
+                setErrorMsg('⛔ Sécurité : 3 tentatives de connexion infructueuses consécutives. Accès temporairement verrouillé pendant 60 secondes.');
+              } else {
+                localStorage.setItem(STORAGE_ATTEMPTS_KEY, String(nextFailed));
+                setFailedAttempts(nextFailed);
+                const remaining = MAX_LOGIN_ATTEMPTS - nextFailed;
+                setErrorMsg(`Identifiant ou mot de passe incorrect. ⚠️ Attention : il vous reste ${remaining} tentative${remaining > 1 ? 's' : ''} sur ${MAX_LOGIN_ATTEMPTS} avant verrouillage temporaire.`);
+              }
             } else if (error.message.includes('Email not confirmed')) {
               setErrorMsg('✉️ Votre adresse email n\'a pas encore été validée. Cliquez ci-dessous pour renvoyer le lien de confirmation ou vérifiez votre boîte de réception.');
               setShowResendEmail(true);
@@ -244,6 +300,11 @@ const AuthModal = ({
           if (data?.user) {
             loggedUserId = data.user.id;
             userMeta = data.user.user_metadata || {};
+            // Réinitialiser le compteur de tentatives après succès
+            localStorage.removeItem(STORAGE_ATTEMPTS_KEY);
+            localStorage.removeItem(STORAGE_LOCKOUT_KEY);
+            setFailedAttempts(0);
+            setLockoutSeconds(0);
           }
         }
 
@@ -345,7 +406,25 @@ const AuthModal = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-4 bg-white">
           
           {/* Notification Messages */}
-          {errorMsg && (
+          {lockoutSeconds > 0 && mode === 'login' && (
+            <div className="bg-red-50 border border-red-300 text-red-800 p-4 rounded-2xl text-xs font-semibold flex flex-col gap-2 animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-red-600 animate-pulse" />
+                <span className="font-bold">Compte verrouillé temporairement (3/3 tentatives)</span>
+              </div>
+              <p className="text-[11px] text-red-700">
+                Vous avez atteint la limite de 3 tentatives infructueuses. Pour votre sécurité, veuillez patienter <strong>{lockoutSeconds} seconde{lockoutSeconds > 1 ? 's' : ''}</strong> avant de réessayer.
+              </p>
+              <div className="w-full bg-red-200 rounded-full h-1.5 overflow-hidden mt-1">
+                <div 
+                  className="bg-red-600 h-1.5 transition-all duration-1000 ease-linear rounded-full"
+                  style={{ width: `${(lockoutSeconds / 60) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+
+          {errorMsg && lockoutSeconds === 0 && (
             <div className="bg-red-50 text-red-700 p-3.5 rounded-2xl border border-red-200 text-xs font-semibold flex items-start gap-2 animate-in fade-in">
               <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
@@ -521,11 +600,12 @@ const AuthModal = ({
                 <Mail className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
+                  disabled={lockoutSeconds > 0}
                   required={mode === 'login' && loginMethod === 'email'}
                   placeholder="ex: gerant@maboutique.com ou votre_email@gmail.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500 disabled:opacity-50"
                 />
               </div>
             </div>
@@ -541,11 +621,12 @@ const AuthModal = ({
                 <Phone className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="tel"
+                  disabled={lockoutSeconds > 0}
                   required={mode === 'login' && loginMethod === 'phone'}
                   placeholder="ex: +226 70 00 11 22 ou 70001122"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500 font-semibold"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500 font-semibold disabled:opacity-50"
                 />
               </div>
             </div>
@@ -553,19 +634,27 @@ const AuthModal = ({
 
           {/* Mot de Passe */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-              Mot de Passe (min. 6 caractères) *
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                Mot de Passe (min. 6 caractères) *
+              </label>
+              {mode === 'login' && failedAttempts > 0 && failedAttempts < MAX_LOGIN_ATTEMPTS && (
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                  Tentative {failedAttempts}/{MAX_LOGIN_ATTEMPTS}
+                </span>
+              )}
+            </div>
             <div className="relative">
               <Lock className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
                 required
+                disabled={lockoutSeconds > 0}
                 minLength={6}
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full pl-10 pr-4 py-2.5 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500"
+                className="w-full pl-10 pr-4 py-2.5 bg-[#F0FDF4] border border-emerald-200 rounded-2xl text-xs focus:outline-none focus:border-emerald-500 disabled:opacity-50"
               />
             </div>
           </div>
@@ -573,13 +662,18 @@ const AuthModal = ({
           {/* Bouton de Soumission */}
           <button
             type="submit"
-            disabled={isLoading}
-            className="w-full btn-magnetic bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3.5 rounded-2xl text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all mt-4 disabled:opacity-50"
+            disabled={isLoading || (mode === 'login' && lockoutSeconds > 0)}
+            className="w-full btn-magnetic bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3.5 rounded-2xl text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Vérification en cours...</span>
+              </>
+            ) : lockoutSeconds > 0 && mode === 'login' ? (
+              <>
+                <Lock className="w-4 h-4" />
+                <span>Bloqué temporairement ({lockoutSeconds}s)</span>
               </>
             ) : (
               <>
