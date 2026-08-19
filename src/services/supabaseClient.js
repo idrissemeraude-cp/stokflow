@@ -6,7 +6,10 @@ const STORAGE_KEYS = {
   AUTO_SYNC_ENABLED: 'stockflow_auto_sync'
 };
 
-// Récupération des identifiants (LocalStorage en priorité, puis variables d'environnement .env)
+const DEFAULT_SUPABASE_URL = 'https://jkvwnydpygiipfifbemz.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_TgKFilq1dQVIHSf0h25RwA_-YV7KTS9';
+
+// Récupération des identifiants (LocalStorage en priorité, puis .env, puis valeurs par défaut)
 export const getSupabaseConfig = () => {
   const localUrl = localStorage.getItem(STORAGE_KEYS.SUPABASE_URL);
   const localKey = localStorage.getItem(STORAGE_KEYS.SUPABASE_KEY);
@@ -15,11 +18,14 @@ export const getSupabaseConfig = () => {
   const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
+  const effectiveUrl = (localUrl || envUrl || DEFAULT_SUPABASE_URL).trim();
+  const effectiveKey = (localKey || envKey || DEFAULT_SUPABASE_KEY).trim();
+
   return {
-    url: localUrl || envUrl,
-    key: localKey || envKey,
+    url: effectiveUrl,
+    key: effectiveKey,
     autoSync,
-    isConfigured: Boolean((localUrl || envUrl) && (localKey || envKey))
+    isConfigured: Boolean(effectiveUrl && effectiveKey)
   };
 };
 
