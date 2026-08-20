@@ -308,12 +308,56 @@ const AuthModal = ({
         let loggedUserId = `user-${Date.now()}`;
         let userMeta = {};
 
-        // Connexion Supabase Auth
+        // Connexion Supabase Auth intelligente
         if (client) {
-          const { data, error } = await client.auth.signInWithPassword({
-            email: effectiveEmail,
+          let targetLoginEmail = effectiveEmail;
+          let matchedProfileObj = null;
+
+          // Recherche préalable du profil dans Supabase par email ou téléphone
+          try {
+            const queryConditions = [];
+            if (formData.email.trim()) queryConditions.push(`email.ilike.${formData.email.trim().toLowerCase()}`);
+            if (cleanPhone) queryConditions.push(`phone.eq.${cleanPhone}`);
+
+            if (queryConditions.length > 0) {
+              const { data: matchedProfiles } = await client
+                .from('profiles')
+                .select('*')
+                .or(queryConditions.join(','));
+
+              if (matchedProfiles && matchedProfiles.length > 0) {
+                matchedProfileObj = matchedProfiles[0];
+                if (matchedProfileObj.email) {
+                  targetLoginEmail = matchedProfileObj.email;
+                }
+              }
+            }
+          } catch (lookupErr) {
+            console.warn('Note recherche profil login:', lookupErr.message);
+          }
+
+          // Tentative de connexion avec l'email exact enregistré
+          let { data, error } = await client.auth.signInWithPassword({
+            email: targetLoginEmail,
             password: formData.password
           });
+
+          // Si l'essai échoue, tentative avec la variante de secours
+          if (error && error.message.includes('Invalid login credentials') && cleanPhone) {
+            const cleanDigits = cleanPhone.replace(/\D/g, '');
+            const fallbackEmail = `user_${cleanDigits}@stockflow.app`;
+            if (fallbackEmail !== targetLoginEmail) {
+              console.warn(`Tentative de connexion secours avec: ${fallbackEmail}`);
+              const resFallback = await client.auth.signInWithPassword({
+                email: fallbackEmail,
+                password: formData.password
+              });
+              if (!resFallback.error) {
+                data = resFallback.data;
+                error = null;
+              }
+            }
+          }
 
           if (error) {
             console.error('Erreur Supabase SignIn:', error);
@@ -346,7 +390,18 @@ const AuthModal = ({
 
           if (data?.user) {
             loggedUserId = data.user.id;
-            userMeta = data.user.user_metadata || {};
+            userMeta = {
+              ...data.user.user_metadata,
+              ...(matchedProfileObj ? {
+                owner_name: matchedProfileObj.owner_name,
+                store_name: matchedProfileObj.store_name,
+                phone: matchedProfileObj.phone,
+                email: matchedProfileObj.email,
+                city: matchedProfileObj.city,
+                role: matchedProfileObj.role,
+                plan: matchedProfileObj.plan
+              } : {})
+            };
             // Réinitialiser le compteur de tentatives après succès
             localStorage.removeItem(STORAGE_ATTEMPTS_KEY);
             localStorage.removeItem(STORAGE_LOCKOUT_KEY);
