@@ -41,8 +41,13 @@ import { dbService, mappers } from './services/dbService';
 import { getSupabaseConfig, getSupabaseClient } from './services/supabaseClient';
 
 export function App() {
-  // Global View State ('landing' | 'dashboard')
-  const [currentView, setCurrentView] = useState('landing');
+  // Global View State ('landing' | 'dashboard') - Persisté sur rafraîchissement
+  const [currentView, setCurrentView] = useState(() => {
+    const savedView = localStorage.getItem('stockflow_current_view');
+    const savedUser = localStorage.getItem('stockflow_user');
+    if (savedView) return savedView;
+    return savedUser ? 'dashboard' : 'landing';
+  });
 
   // Auth Modal State ('login' | 'register' | null)
   const [authModalMode, setAuthModalMode] = useState(null);
@@ -54,7 +59,23 @@ export function App() {
   });
 
   // Navigation State inside App ('dashboard' | 'pos' | 'stock' | 'expenses' | 'closing' | 'clients' | 'relances' | 'analytics')
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = localStorage.getItem('stockflow_active_tab');
+    return savedTab || 'dashboard';
+  });
+
+  // Persistance de la vue globale et de l'onglet actif dans localStorage
+  useEffect(() => {
+    if (currentView) {
+      localStorage.setItem('stockflow_current_view', currentView);
+    }
+  }, [currentView]);
+
+  useEffect(() => {
+    if (activeTab) {
+      localStorage.setItem('stockflow_active_tab', activeTab);
+    }
+  }, [activeTab]);
 
   // Security Role & PIN State
   const [userRole, setUserRole] = useState('ADMIN'); // 'ADMIN' | 'CASHIER'
@@ -419,6 +440,14 @@ export function App() {
     setCurrentView('dashboard');
   };
 
+  const handleGoToLanding = () => {
+    setCurrentView('landing');
+  };
+
+  const handleGoToDashboard = () => {
+    setCurrentView('dashboard');
+  };
+
   const handleLogout = async () => {
     const client = getSupabaseClient();
     if (client) {
@@ -429,6 +458,7 @@ export function App() {
       }
     }
     localStorage.removeItem('stockflow_user');
+    localStorage.removeItem('stockflow_current_view');
     setCurrentUser(null);
     setCurrentView('landing');
   };
@@ -706,6 +736,9 @@ export function App() {
         <LandingPage
           onOpenAuth={(mode) => setAuthModalMode(mode)}
           onEnterDemo={handleEnterDemo}
+          currentUser={currentUser}
+          onGoToDashboard={handleGoToDashboard}
+          onLogout={handleLogout}
         />
       ) : (
         /* DASHBOARD APP VIEW */
@@ -718,6 +751,7 @@ export function App() {
             onExportData={handleExportData}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
+            onGoToLanding={handleGoToLanding}
             onLogout={handleLogout}
             userRole={userRole}
             onOpenRoleModal={() => setIsRoleModalOpen(true)}

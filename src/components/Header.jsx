@@ -26,6 +26,7 @@ const Header = ({
   onExportData, 
   activeTab, 
   setActiveTab,
+  onGoToLanding,
   onLogout,
   userRole = 'ADMIN',
   onOpenRoleModal,
@@ -150,14 +151,26 @@ const Header = ({
             <span className="hidden lg:inline text-[11px]">Cloud Sync</span>
           </div>
 
-          {/* Home Page / Déconnexion */}
+          {/* Accueil (Landing Page) */}
           <button
+            type="button"
+            onClick={onGoToLanding}
+            title="Retourner à la page d'accueil"
+            className="bg-white/10 hover:bg-white/20 text-[#FAF8F5] border border-white/20 px-3 py-1.5 rounded-2xl text-xs font-semibold flex items-center space-x-1.5 transition-all"
+          >
+            <Home className="w-3.5 h-3.5 text-emerald-300" />
+            <span className="hidden md:inline">Accueil</span>
+          </button>
+
+          {/* Déconnexion */}
+          <button
+            type="button"
             onClick={onLogout}
-            title="Retourner à la page de présentation"
+            title="Se déconnecter de votre compte"
             className="bg-red-500/20 hover:bg-red-500/30 text-red-100 border border-red-400/40 px-3 py-1.5 rounded-2xl text-xs font-semibold flex items-center space-x-1.5 transition-all"
           >
-            <Home className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Accueil</span>
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Déconnexion</span>
           </button>
 
         </div>

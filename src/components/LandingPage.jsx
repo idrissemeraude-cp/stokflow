@@ -30,10 +30,12 @@ import {
   Play,
   Video,
   Flame,
-  CheckSquare
+  CheckSquare,
+  LayoutDashboard,
+  LogOut
 } from 'lucide-react';
 
-const LandingPage = ({ onOpenAuth, onEnterDemo }) => {
+const LandingPage = ({ onOpenAuth, onEnterDemo, currentUser, onGoToDashboard, onLogout }) => {
   const [isPlayingDemo, setIsPlayingDemo] = useState(false);
 
   return (
@@ -72,20 +74,40 @@ const LandingPage = ({ onOpenAuth, onEnterDemo }) => {
 
           {/* Action CTA Buttons */}
           <div className="flex items-center space-x-2.5">
-            <button
-              onClick={() => onOpenAuth('login')}
-              className="px-3.5 py-2 rounded-2xl text-xs font-bold text-[#064E3B] hover:bg-emerald-100/60 transition-all border border-emerald-200"
-            >
-              Se Connecter
-            </button>
+            {currentUser ? (
+              <>
+                <button
+                  onClick={onGoToDashboard}
+                  className="btn-magnetic bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold px-4 sm:px-5 py-2.5 rounded-2xl text-xs shadow-lg shadow-emerald-500/25 flex items-center space-x-1.5 transition-all"
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5" />
+                  <span>Mon Tableau de Bord</span>
+                </button>
+                <button
+                  onClick={onLogout}
+                  className="px-3.5 py-2 rounded-2xl text-xs font-bold text-red-700 hover:bg-red-50 transition-all border border-red-200"
+                >
+                  Déconnexion
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => onOpenAuth('login')}
+                  className="px-3.5 py-2 rounded-2xl text-xs font-bold text-[#064E3B] hover:bg-emerald-100/60 transition-all border border-emerald-200"
+                >
+                  Se Connecter
+                </button>
 
-            <button
-              onClick={() => onOpenAuth('register')}
-              className="btn-magnetic bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold px-4 sm:px-5 py-2.5 rounded-2xl text-xs shadow-lg shadow-emerald-500/25 flex items-center space-x-1.5 transition-all"
-            >
-              <span>Créer un Compte</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+                <button
+                  onClick={() => onOpenAuth('register')}
+                  className="btn-magnetic bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold px-4 sm:px-5 py-2.5 rounded-2xl text-xs shadow-lg shadow-emerald-500/25 flex items-center space-x-1.5 transition-all"
+                >
+                  <span>Créer un Compte</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
           </div>
 
         </div>
@@ -112,21 +134,34 @@ const LandingPage = ({ onOpenAuth, onEnterDemo }) => {
 
           {/* Hero CTAs */}
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
-            <button
-              onClick={() => onOpenAuth('register')}
-              className="w-full sm:w-auto btn-magnetic bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold px-8 py-3.5 rounded-2xl text-sm shadow-xl shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all"
-            >
-              <span>Créer mon Compte Immédiatement</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            {currentUser ? (
+              <button
+                onClick={onGoToDashboard}
+                className="w-full sm:w-auto btn-magnetic bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold px-8 py-3.5 rounded-2xl text-sm shadow-xl shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Accéder à mon Tableau de Bord</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => onOpenAuth('register')}
+                  className="w-full sm:w-auto btn-magnetic bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold px-8 py-3.5 rounded-2xl text-sm shadow-xl shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all"
+                >
+                  <span>Créer mon Compte Immédiatement</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
 
-            <button
-              onClick={onEnterDemo}
-              className="w-full sm:w-auto bg-white hover:bg-emerald-50 text-[#064E3B] font-bold px-8 py-3.5 rounded-2xl text-sm border border-emerald-300 shadow-sm flex items-center justify-center space-x-2 transition-all"
-            >
-              <Zap className="w-4 h-4 text-emerald-600" />
-              <span>Tester la Démo en 1 Clic</span>
-            </button>
+                <button
+                  onClick={onEnterDemo}
+                  className="w-full sm:w-auto bg-white hover:bg-emerald-50 text-[#064E3B] font-bold px-8 py-3.5 rounded-2xl text-sm border border-emerald-300 shadow-sm flex items-center justify-center space-x-2 transition-all"
+                >
+                  <Zap className="w-4 h-4 text-emerald-600" />
+                  <span>Tester la Démo en 1 Clic</span>
+                </button>
+              </>
+            )}
           </div>
 
           {/* Social Proof Stats */}
