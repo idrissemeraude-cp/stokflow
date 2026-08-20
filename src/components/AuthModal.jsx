@@ -171,9 +171,36 @@ const AuthModal = ({
           return;
         }
 
+        const targetEmail = formData.email.trim().toLowerCase();
+        const cleanDigits = cleanPhone.replace(/\D/g, '');
+
+        // 1. Vérification d'unicité préalable dans la table des profils Supabase
+        if (client) {
+          try {
+            const queryConditions = [];
+            if (targetEmail) queryConditions.push(`email.ilike.${targetEmail}`);
+            if (cleanDigits && cleanDigits.length >= 8) queryConditions.push(`phone.eq.${cleanPhone}`);
+
+            if (queryConditions.length > 0) {
+              const { data: existingProfiles } = await client
+                .from('profiles')
+                .select('id, email, phone, store_name')
+                .or(queryConditions.join(','));
+
+              if (existingProfiles && existingProfiles.length > 0) {
+                setErrorMsg(`⛔ L'adresse email "${targetEmail || cleanPhone}" est déjà utilisée par un autre compte ("${existingProfiles[0].store_name || 'Boutique'}"). Impossible d'utiliser le même email pour créer plusieurs comptes. Veuillez cliquer sur "Se Connecter" ci-dessus.`);
+                setIsLoading(false);
+                return;
+              }
+            }
+          } catch (checkErr) {
+            console.warn('Note vérification unicité profil:', checkErr.message);
+          }
+        }
+
         let createdUserId = `user-${Date.now()}`;
 
-        // Inscription Supabase Auth si configuré
+        // 2. Inscription Supabase Auth
         if (client) {
           try {
             let { data, error } = await client.auth.signUp({
@@ -184,7 +211,7 @@ const AuthModal = ({
                   owner_name: formData.ownerName.trim() || 'Commerçant',
                   store_name: formData.storeName.trim(),
                   phone: cleanPhone,
-                  email: formData.email.trim() || effectiveEmail,
+                  email: targetEmail || effectiveEmail,
                   city: formData.city.trim() || 'Ouagadougou, Burkina Faso',
                   plan: selectedPlan,
                   role: 'ADMIN'
@@ -193,15 +220,20 @@ const AuthModal = ({
             });
 
             if (error) {
-              console.warn('Note Supabase SignUp (premier essai):', error.message);
-              if (error.message.includes('already registered') || error.message.includes('User already exists')) {
-                setErrorMsg('Ce compte existe déjà. Veuillez cliquer sur "Se Connecter" ci-dessus.');
+              console.warn('Note Supabase SignUp:', error.message);
+              const errLower = error.message.toLowerCase();
+              if (
+                errLower.includes('already registered') || 
+                errLower.includes('user already exists') ||
+                errLower.includes('already in use') ||
+                errLower.includes('email_already_exists')
+              ) {
+                setErrorMsg(`⛔ L'adresse email "${targetEmail || effectiveEmail}" est déjà enregistrée sur Supabase. Veuillez cliquer sur "Se Connecter" ci-dessus pour vous connecter à votre compte.`);
                 setIsLoading(false);
                 return;
               }
 
-              // Si Supabase rejette l'adresse (ex: validation SMTP par défaut), on effectue un essai de secours garanti
-              const cleanDigits = cleanPhone.replace(/\D/g, '');
+              // Si Supabase rejette l'adresse à cause du format SMTP par défaut, tentative de secours
               const fallbackEmail = `user_${cleanDigits || Date.now()}@stockflow.app`;
               console.warn(`Tentative de création Supabase secours avec: ${fallbackEmail}`);
 
@@ -213,7 +245,7 @@ const AuthModal = ({
                     owner_name: formData.ownerName.trim() || 'Commerçant',
                     store_name: formData.storeName.trim(),
                     phone: cleanPhone,
-                    email: formData.email.trim() || effectiveEmail,
+                    email: targetEmail || effectiveEmail,
                     city: formData.city.trim() || 'Ouagadougou, Burkina Faso',
                     plan: selectedPlan,
                     role: 'ADMIN'
@@ -230,11 +262,11 @@ const AuthModal = ({
             console.warn('Erreur inscription Supabase gérée:', signUpErr.message);
           }
 
-          // Enregistrement explicite dans la table publique public.profiles de Supabase
+          // 3. Enregistrement explicite dans la table publique public.profiles de Supabase
           try {
             await dbService.upsertProfile({
               id: createdUserId,
-              email: formData.email.trim() || effectiveEmail,
+              email: targetEmail || effectiveEmail,
               phone: cleanPhone,
               ownerName: formData.ownerName.trim() || 'Commerçant',
               storeName: formData.storeName.trim(),
@@ -244,7 +276,7 @@ const AuthModal = ({
               createdAt: new Date().toISOString()
             });
           } catch (profileErr) {
-            console.warn('Note insertion profile (peut être gérée par trigger):', profileErr.message);
+            console.warn('Note insertion profile:', profileErr.message);
           }
         }
 
