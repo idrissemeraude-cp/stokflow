@@ -147,6 +147,7 @@ const AuthModal = ({
 
     setIsLoading(true);
 
+    const config = getSupabaseConfig();
     const client = getSupabaseClient();
     const cleanPhone = formData.phone.trim();
     const effectiveEmail = getEffectiveEmail();
@@ -157,8 +158,8 @@ const AuthModal = ({
       return;
     }
 
-    if (!client) {
-      setErrorMsg("⚠️ L'application n'est pas encore connectée à Supabase.");
+    if (!config.isConfigured || !client) {
+      setErrorMsg("⚠️ Votre projet Supabase n'est pas encore connecté avec une clé API valide. Rendez-vous dans les paramètres Cloud/Base de données pour coller l'URL de votre projet Supabase et votre clé 'anon' (JWT commencant par eyJ...).");
       setIsLoading(false);
       return;
     }
