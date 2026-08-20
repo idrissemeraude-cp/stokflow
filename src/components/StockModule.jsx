@@ -469,6 +469,110 @@ const StockModule = ({
             </tbody>
           </table>
         </div>
+
+        {/* 📱 VUE MOBILE SUR-MESURE : Cartes tactiles intuitives pour smartphones */}
+        <div className="block md:hidden p-3 space-y-3 bg-gray-50/50 border-t border-gray-100">
+          {filteredProducts.length > 0 ? (
+            filteredProducts.map((p) => {
+              const isLow = p.stock <= p.lowStockThreshold;
+              const isOut = p.stock === 0;
+
+              return (
+                <div 
+                  key={p.id}
+                  className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3 relative"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 mb-1 inline-block">
+                        {p.category}
+                      </span>
+                      <h4 className="font-bold text-sm text-gray-900 leading-snug">
+                        {p.name}
+                      </h4>
+                      {p.barcode && (
+                        <span className="text-[9px] font-mono text-gray-400 block mt-0.5">
+                          ❚❚ {p.barcode}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-right">
+                      <span className="font-extrabold text-sm text-emerald-700 font-mono block">
+                        {formatFCFA(p.salePrice)}
+                      </span>
+                      <span className="text-[10px] text-gray-400">
+                        Achat: {formatFCFA(p.purchasePrice)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Boutons d'ajustement du Stock Tactiles Mobile */}
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                    <div className="flex items-center space-x-1.5">
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                        isOut 
+                          ? 'bg-red-100 text-red-700 border border-red-200' 
+                          : isLow 
+                          ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                          : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      }`}>
+                        {isOut ? 'Rupture (0)' : isLow ? `Stock bas (${p.stock})` : `En stock (${p.stock})`}
+                      </span>
+                    </div>
+
+                    {/* Stock Adjuster */}
+                    <div className="inline-flex items-center bg-gray-100 rounded-2xl p-1 border border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => handleQuickAdjustStock(p, -1)}
+                        className="w-8 h-8 rounded-xl bg-white text-red-600 font-extrabold text-sm flex items-center justify-center shadow-sm active:scale-95"
+                      >
+                        -
+                      </button>
+                      <span className="w-9 text-center font-extrabold text-xs text-gray-900">
+                        {p.stock}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickAdjustStock(p, 1)}
+                        className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-extrabold text-sm flex items-center justify-center shadow-md active:scale-95"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Actions mobile */}
+                  <div className="flex items-center justify-end space-x-2 pt-2 border-t border-gray-100">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenModal(p)}
+                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center space-x-1"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Modifier</span>
+                    </button>
+                    {userRole === 'ADMIN' && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteProduct(p.id)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-600 flex items-center space-x-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Supprimer</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="py-8 text-center text-xs text-gray-500">
+              Aucun article trouvé dans votre catalogue
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Add / Edit Product Modal */}
