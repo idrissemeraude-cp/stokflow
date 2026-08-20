@@ -208,13 +208,7 @@ const AuthModal = ({
             createdUserId = data.user.id;
           }
 
-          // Si Supabase requiert la confirmation d'email
-          if (data?.user && !data?.session) {
-            setInfoMsg(`✅ Inscription réussie ! Un email de confirmation a été envoyé à ${effectiveEmail}. Cliquez sur le lien dans l'email pour activer votre compte (ou désactivez "Confirm email" dans Supabase pour vous connecter directement).`);
-            setIsLoading(false);
-            setMode('login');
-            return;
-          }
+          // L'utilisateur est inscrit dans Supabase et entre directement dans son tableau de bord
 
           // Enregistrement explicite dans la table publique public.profiles
           try {
