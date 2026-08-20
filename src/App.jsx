@@ -261,19 +261,7 @@ export function App() {
     }
 
     // Initialiser le moteur de synchronisation
-    syncEngine.init().then(async () => {
-      const config = getSupabaseConfig();
-      if (config.isConfigured) {
-        try {
-          const cloudData = await dbService.fetchAllFromCloud();
-          if (cloudData) {
-            handleCloudDataImported(cloudData);
-          }
-        } catch (err) {
-          console.warn('[Supabase Init Auto-Fetch] info:', err.message);
-        }
-      }
-    });
+    syncEngine.init();
 
     const unsubSync = syncEngine.subscribe((state) => {
       setSyncState(state);
