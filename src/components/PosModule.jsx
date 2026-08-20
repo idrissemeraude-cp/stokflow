@@ -53,6 +53,78 @@ const PosModule = ({
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
   const [newClientForm, setNewClientForm] = useState({ name: '', phone: '+226', address: '' });
 
+  // Quick Sale Modal State (Direct article click)
+  const [quickSaleProduct, setQuickSaleProduct] = useState(null);
+  const [quickSaleQty, setQuickSaleQty] = useState(1);
+  const [quickSaleVariant, setQuickSaleVariant] = useState(null);
+  const [quickSaleClientId, setQuickSaleClientId] = useState('');
+  const [quickSalePaymentType, setQuickSalePaymentType] = useState('CASH');
+  const [quickSaleCashMethod, setQuickSaleCashMethod] = useState('CASH');
+  const [quickSaleAdvancePaid, setQuickSaleAdvancePaid] = useState('');
+  const [quickSaleAdvanceMethod, setQuickSaleAdvanceMethod] = useState('CASH');
+  const [quickSaleDueDate, setQuickSaleDueDate] = useState(getDefaultDueDate());
+
+  // Open Quick Sale Modal for an article
+  const handleOpenQuickSale = (product, variant = null) => {
+    if (product.stock <= 0) return;
+    setQuickSaleProduct(product);
+    setQuickSaleQty(1);
+    setQuickSaleVariant(variant || (product.variants && product.variants.length > 0 ? product.variants[0] : null));
+    setQuickSaleClientId(selectedClientId || '');
+    setQuickSalePaymentType('CASH');
+    setQuickSaleCashMethod('CASH');
+    setQuickSaleAdvancePaid('');
+    setQuickSaleAdvanceMethod('CASH');
+    setQuickSaleDueDate(getDefaultDueDate());
+  };
+
+  // Calculations for Quick Sale Modal
+  const quickSaleTotal = (quickSaleProduct?.salePrice || 0) * quickSaleQty;
+  const quickSaleParsedAdvance = quickSalePaymentType === 'CASH' ? quickSaleTotal : (Number(quickSaleAdvancePaid) || 0);
+  const quickSaleRemainingDue = Math.max(0, quickSaleTotal - quickSaleParsedAdvance);
+
+  // Validate & Save Quick Sale
+  const handleValidateQuickSale = (e) => {
+    if (e) e.preventDefault();
+    if (!quickSaleProduct) return;
+
+    const client = clients.find(c => c.id === quickSaleClientId) || {
+      id: 'cli-anonymous',
+      name: 'Client de passage (Boutique)',
+      phone: ''
+    };
+
+    const salePayload = {
+      id: `sale-${Date.now()}`,
+      clientId: client.id,
+      clientName: client.name,
+      clientPhone: client.phone,
+      items: [{
+        productId: quickSaleProduct.id,
+        name: quickSaleProduct.name,
+        variant: quickSaleVariant || null,
+        qty: quickSaleQty,
+        price: quickSaleProduct.salePrice
+      }],
+      totalAmount: quickSaleTotal,
+      paymentType: quickSalePaymentType,
+      advancePaid: quickSaleParsedAdvance,
+      advanceMethod: quickSalePaymentType === 'CASH' ? quickSaleCashMethod : quickSaleAdvanceMethod,
+      remainingDue: quickSalePaymentType === 'CASH' ? 0 : quickSaleRemainingDue,
+      dueDate: quickSalePaymentType === 'CREDIT' ? quickSaleDueDate : null,
+      status: quickSalePaymentType === 'CASH' || quickSaleRemainingDue === 0 ? 'PAID' : 'PARTIAL',
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    onSaveSale(salePayload, salePayload.advanceMethod);
+
+    if (onOpenReceiptModal) {
+      onOpenReceiptModal(salePayload);
+    }
+
+    setQuickSaleProduct(null);
+  };
+
   // Add item to cart (with optional variant)
   const handleAddToCart = (product, selectedVariant = null) => {
     if (product.stock <= 0) return;
@@ -243,8 +315,12 @@ const PosModule = ({
                       </span>
                     )}
 
-                    <div className="space-y-1">
-                      <h4 className="font-bold text-sm text-gray-900 line-clamp-2 leading-snug">
+                    <div 
+                      onClick={() => !isOutOfStock && handleOpenQuickSale(product)}
+                      className="space-y-1 cursor-pointer"
+                      title="Cliquer pour ouvrir le formulaire de vente rapide"
+                    >
+                      <h4 className="font-bold text-sm text-gray-900 line-clamp-2 leading-snug hover:text-emerald-700 transition-colors">
                         {product.name}
                       </h4>
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -271,7 +347,7 @@ const PosModule = ({
                               key={v}
                               type="button"
                               disabled={isOutOfStock}
-                              onClick={() => handleAddToCart(product, v)}
+                              onClick={() => handleOpenQuickSale(product, v)}
                               className="px-2 py-0.5 rounded-lg bg-gray-100 hover:bg-emerald-600 hover:text-white text-gray-700 text-[10px] font-bold transition-colors"
                             >
                               + {v}
@@ -281,30 +357,33 @@ const PosModule = ({
                       </div>
                     )}
 
-                    <div className="pt-2 mt-2 border-t border-gray-100 flex items-center justify-between">
+                    <div className="pt-2 mt-2 border-t border-gray-100 flex items-center justify-between gap-1">
                       <span className="font-bold text-xs text-emerald-700 font-mono">
                         {formatFCFA(product.salePrice)}
                       </span>
                       
-                      {!product.variants || product.variants.length === 0 ? (
-                        <button
-                          type="button"
-                          disabled={isOutOfStock}
-                          onClick={() => handleAddToCart(product)}
-                          className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center space-x-1 ${
-                            isOutOfStock
-                              ? 'bg-red-100 text-red-600 cursor-not-allowed'
-                              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
-                          }`}
-                        >
-                          <Plus className="w-3 h-3" />
-                          <span>Ajouter</span>
-                        </button>
+                      {!isOutOfStock ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenQuickSale(product)}
+                            className="px-2 py-1 rounded-xl text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-1"
+                            title="Formulaire de Vente Rapide pour cet article"
+                          >
+                            <span>⚡ Vendre</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAddToCart(product)}
+                            className="p-1 rounded-xl text-[10px] font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-800"
+                            title="Ajouter au Panier Multi-Articles"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       ) : (
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                          isOutOfStock ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-800'
-                        }`}>
-                          {isOutOfStock ? 'Rupture' : `Stock: ${product.stock}`}
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                          Rupture
                         </span>
                       )}
                     </div>
@@ -687,6 +766,242 @@ const PosModule = ({
                   Créer et Sélectionner
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Sale Modal (triggered by clicking an article card) */}
+      {quickSaleProduct && (
+        <div className="fixed inset-0 bg-[#064E3B]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-emerald-200 space-y-5 my-8">
+            
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-gray-100 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xl border border-emerald-200">
+                  🛍️
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                    Formulaire de Vente Rapide
+                  </span>
+                  <h3 className="font-extrabold text-lg text-gray-900 leading-tight">
+                    {quickSaleProduct.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 font-mono">
+                    Prix unitaire : <strong className="text-emerald-700">{formatFCFA(quickSaleProduct.salePrice)}</strong> • Stock dispo : <strong>{quickSaleProduct.stock}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setQuickSaleProduct(null)} 
+                className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleValidateQuickSale} className="space-y-4 text-xs">
+              
+              {/* Quantité : "Il a pris combien ?" */}
+              <div className="bg-[#F0FDF4] p-4 rounded-2rem border border-emerald-200/80 space-y-2">
+                <label className="block font-bold text-xs text-[#064E3B]">
+                  1. Quantité ("Il a pris combien ?") *
+                </label>
+                <div className="flex items-center space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setQuickSaleQty(q => Math.max(1, q - 1))}
+                    className="w-10 h-10 rounded-2xl bg-white text-emerald-800 border border-emerald-300 font-bold text-lg flex items-center justify-center shadow-sm hover:bg-emerald-50"
+                  >
+                    -
+                  </button>
+
+                  <input
+                    type="number"
+                    min="1"
+                    max={quickSaleProduct.stock}
+                    value={quickSaleQty}
+                    onChange={(e) => setQuickSaleQty(Math.max(1, Math.min(quickSaleProduct.stock, parseInt(e.target.value, 10) || 1)))}
+                    className="w-24 py-2.5 text-center font-extrabold text-lg bg-white border border-emerald-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setQuickSaleQty(q => Math.min(quickSaleProduct.stock, q + 1))}
+                    className="w-10 h-10 rounded-2xl bg-emerald-600 text-white font-bold text-lg flex items-center justify-center shadow-md hover:bg-emerald-700"
+                  >
+                    +
+                  </button>
+
+                  <div className="flex items-center gap-1.5 flex-wrap ml-auto">
+                    {[1, 2, 3, 5, 10].map(n => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setQuickSaleQty(Math.min(quickSaleProduct.stock, n))}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all border ${
+                          quickSaleQty === n 
+                            ? 'bg-emerald-800 text-white border-emerald-900' 
+                            : 'bg-white text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sélection du Client */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="block font-bold text-xs text-gray-800">
+                    2. Sélection du Client *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewClientForm({ name: '', phone: '+226', address: '' });
+                      setIsNewClientModalOpen(true);
+                    }}
+                    className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Nouveau client</span>
+                  </button>
+                </div>
+
+                <select
+                  value={quickSaleClientId}
+                  onChange={(e) => setQuickSaleClientId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-2rem bg-gray-50 border border-gray-300 text-xs font-semibold text-gray-800 focus:ring-2 focus:ring-emerald-500/50 focus:outline-none"
+                >
+                  <option value="">-- Client de passage (Boutique) --</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.phone})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Mode de Règlement */}
+              <div className="space-y-2 pt-2 border-t border-gray-100">
+                <label className="block font-bold text-xs text-gray-800">3. Mode de Règlement *</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setQuickSalePaymentType('CASH')}
+                    className={`py-2.5 px-3 rounded-2rem text-xs font-bold flex items-center justify-center space-x-1.5 border transition-all ${
+                      quickSalePaymentType === 'CASH'
+                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-md'
+                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    <span>Règlement COMPTANT</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setQuickSalePaymentType('CREDIT')}
+                    className={`py-2.5 px-3 rounded-2rem text-xs font-bold flex items-center justify-center space-x-1.5 border transition-all ${
+                      quickSalePaymentType === 'CREDIT'
+                        ? 'bg-red-600 text-white border-red-700 shadow-md'
+                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Vente à CRÉDIT</span>
+                  </button>
+                </div>
+
+                {quickSalePaymentType === 'CASH' && (
+                  <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-1">
+                    <label className="block font-bold text-[11px] text-emerald-900">Canal de paiement :</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                      {[
+                        { id: 'CASH', label: 'Espèces' },
+                        { id: 'ORANGE_MONEY', label: 'Orange Money' },
+                        { id: 'MOOV_MONEY', label: 'Moov Money' },
+                        { id: 'WAVE', label: 'Wave' }
+                      ].map(m => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setQuickSaleCashMethod(m.id)}
+                          className={`py-1 px-2 rounded-xl text-[11px] font-bold border transition-all ${
+                            quickSaleCashMethod === m.id
+                              ? 'bg-emerald-700 text-white border-emerald-800'
+                              : 'bg-white text-gray-700 border-emerald-200 hover:bg-emerald-100'
+                          }`}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {quickSalePaymentType === 'CREDIT' && (
+                  <div className="p-3 rounded-2rem bg-red-50 border border-red-200 space-y-2.5">
+                    <div>
+                      <label className="block font-bold text-xs text-red-900 mb-1">
+                        Somme versée aujourd'hui (Acompte FCFA)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={quickSaleTotal}
+                        placeholder="ex: 5000 (ou 0 FCFA)"
+                        value={quickSaleAdvancePaid}
+                        onChange={(e) => setQuickSaleAdvancePaid(e.target.value)}
+                        className="w-full px-3 py-2 rounded-2rem bg-white border border-red-300 font-bold text-red-700 text-xs focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-xs text-red-900 mb-1">Date limite de paiement *</label>
+                      <input
+                        type="date"
+                        required
+                        value={quickSaleDueDate}
+                        onChange={(e) => setQuickSaleDueDate(e.target.value)}
+                        className="w-full px-3 py-2 rounded-2rem bg-white border border-red-300 text-xs font-semibold text-gray-800"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Calculateur Automatique de la Somme Totale */}
+              <div className="bg-[#064E3B] text-white p-4 rounded-2rem border border-emerald-600 space-y-1 shadow-inner text-center">
+                <span className="text-[11px] text-emerald-200 uppercase font-bold tracking-wider">
+                  Montant Total à Encaisser (Calculé Automatiquement)
+                </span>
+                <div className="text-3xl font-extrabold text-[#10B981] font-mono tracking-tight">
+                  {formatFCFA(quickSaleTotal)}
+                </div>
+                {quickSalePaymentType === 'CREDIT' && (
+                  <div className="flex justify-between text-xs pt-2 border-t border-emerald-700 text-emerald-200">
+                    <span>Avance: <strong>{formatFCFA(quickSaleParsedAdvance)}</strong></span>
+                    <span>Reste dû: <strong className="text-red-400">{formatFCFA(quickSaleRemainingDue)}</strong></span>
+                  </div>
+                )}
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                className="w-full py-4 rounded-2rem bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm shadow-xl shadow-emerald-600/30 flex items-center justify-center space-x-2 transition-all btn-magnetic"
+              >
+                <CheckCircle className="w-5 h-5 text-white" />
+                <span>Valider & Enregistrer la Vente (Imprimer Reçu)</span>
+              </button>
+
             </form>
           </div>
         </div>
