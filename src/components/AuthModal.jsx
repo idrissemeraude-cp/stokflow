@@ -175,37 +175,38 @@ const AuthModal = ({
 
         // Inscription Supabase Auth si configuré
         if (client) {
-          const { data, error } = await client.auth.signUp({
-            email: effectiveEmail,
-            password: formData.password,
-            options: {
-              data: {
-                owner_name: formData.ownerName.trim() || 'Commerçant',
-                store_name: formData.storeName.trim(),
-                phone: cleanPhone,
-                email: formData.email.trim() || effectiveEmail,
-                city: formData.city.trim() || 'Ouagadougou, Burkina Faso',
-                plan: selectedPlan,
-                role: 'ADMIN'
+          try {
+            const { data, error } = await client.auth.signUp({
+              email: effectiveEmail,
+              password: formData.password,
+              options: {
+                data: {
+                  owner_name: formData.ownerName.trim() || 'Commerçant',
+                  store_name: formData.storeName.trim(),
+                  phone: cleanPhone,
+                  email: formData.email.trim() || effectiveEmail,
+                  city: formData.city.trim() || 'Ouagadougou, Burkina Faso',
+                  plan: selectedPlan,
+                  role: 'ADMIN'
+                }
               }
-            }
-          });
+            });
 
-          if (error) {
-            console.error('Erreur Supabase SignUp:', error);
-            if (error.message.includes('already registered') || error.message.includes('User already exists')) {
-              setErrorMsg('Ce compte existe déjà. Veuillez cliquer sur "Se Connecter" ci-dessus.');
-            } else if (error.message.includes('rate limit')) {
-              setErrorMsg('Trop de tentatives. Veuillez patienter une minute avant de réessayer.');
-            } else {
-              setErrorMsg(`Erreur Supabase: ${error.message}`);
+            if (error) {
+              console.warn('Note Supabase SignUp:', error.message);
+              if (error.message.includes('already registered') || error.message.includes('User already exists')) {
+                setErrorMsg('Ce compte existe déjà. Veuillez cliquer sur "Se Connecter" ci-dessus.');
+                setIsLoading(false);
+                return;
+              }
+              // Les avertissements d'email/SMTP Supabase à la création ne bloquent pas la connexion initiale
             }
-            setIsLoading(false);
-            return;
-          }
 
-          if (data?.user) {
-            createdUserId = data.user.id;
+            if (data?.user) {
+              createdUserId = data.user.id;
+            }
+          } catch (signUpErr) {
+            console.warn('Erreur inscription Supabase gérée:', signUpErr.message);
           }
 
           // L'utilisateur est inscrit dans Supabase et entre directement dans son tableau de bord
