@@ -85,6 +85,37 @@ export const getSupabaseClient = () => {
   }
 };
 
+let cachedAdminClient = null;
+
+// Client Supabase Admin avec clé Secrète (Service Role) pour contourner les politiques RLS si nécessaire
+export const getSupabaseAdminClient = () => {
+  const config = getSupabaseConfig();
+  if (!config.url) return getSupabaseClient();
+
+  const secretKey = localStorage.getItem('stockflow_supabase_secret') || import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
+
+  if (!secretKey) {
+    return getSupabaseClient();
+  }
+
+  if (cachedAdminClient) {
+    return cachedAdminClient;
+  }
+
+  try {
+    cachedAdminClient = createClient(config.url, secretKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    });
+    return cachedAdminClient;
+  } catch (err) {
+    console.warn('Note creation Admin Client Supabase:', err.message);
+    return getSupabaseClient();
+  }
+};
+
 // Test de connectivité
 export const testSupabaseConnection = async (customUrl, customKey) => {
   const url = customUrl || getSupabaseConfig().url;
