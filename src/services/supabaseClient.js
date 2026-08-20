@@ -7,7 +7,7 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_SUPABASE_URL = 'https://jkvwnydpygiipfifbemz.supabase.co';
-const DEFAULT_SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_TgKFilq1dQVIHSf0h25RwA_-YV7KTS9';
 
 // Récupération des identifiants (LocalStorage en priorité, puis .env, puis valeurs par défaut)
 export const getSupabaseConfig = () => {
@@ -21,15 +21,15 @@ export const getSupabaseConfig = () => {
   const effectiveUrl = (localUrl || envUrl || DEFAULT_SUPABASE_URL).trim();
   const effectiveKey = (localKey || envKey || DEFAULT_SUPABASE_KEY).trim();
 
-  // Une vraie clé Anon Supabase est un token JWT qui commence par 'eyJ'
-  const isValidAnonKey = Boolean(effectiveKey && (effectiveKey.startsWith('eyJ') || effectiveKey.length > 50));
+  // Accepter les clés Supabase JWT (eyJ...), les nouvelles clés Publishable (sb_...) ou toute clé valide
+  const isValidKey = Boolean(effectiveKey && (effectiveKey.startsWith('sb_') || effectiveKey.startsWith('eyJ') || effectiveKey.length >= 10));
 
   return {
     url: effectiveUrl,
     key: effectiveKey,
     autoSync,
-    isConfigured: Boolean(effectiveUrl && isValidAnonKey),
-    hasValidKeyFormat: isValidAnonKey
+    isConfigured: Boolean(effectiveUrl && isValidKey),
+    hasValidKeyFormat: isValidKey
   };
 };
 
