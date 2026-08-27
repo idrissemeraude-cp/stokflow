@@ -227,8 +227,8 @@ const DashboardModule = ({
         </div>
       </div>
 
-      {/* 4 KPI Top Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 3 KPI Top Cards (Prix d'Achat, Prix de Vente, Bénéfice) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* KPI 1 : Prix Total d'Achat */}
         <div className="bg-white p-5 rounded-2rem border border-amber-200 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
@@ -276,25 +276,9 @@ const DashboardModule = ({
             Bénéfice que vous êtes censé avoir (Vente - Achat)
           </span>
         </div>
-
-        {/* KPI 4 : Bénéfice Net Réel actuel en poche */}
-        <div className="bg-white p-5 rounded-2rem border border-blue-200 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-blue-900 uppercase font-extrabold">Bénéfice Net Réel</span>
-            <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-              <PiggyBank className="w-5 h-5" />
-            </div>
-          </div>
-          <p className={`text-2xl font-black mt-2 ${netProfit >= 0 ? 'text-blue-700' : 'text-red-600'}`}>
-            {formatFCFA(netProfit)}
-          </p>
-          <span className="text-[10px] text-gray-500 font-medium mt-2 block">
-            Gain net réel encaissé (après ventes & dépenses)
-          </span>
-        </div>
       </div>
 
-      {/* 📊 BILAN FINANCIER DÉTAILLÉ : CALCUL DU BÉNÉFICE ET DES DÉPENSES */}
+      {/* 📊 BILAN FINANCIER DÉTAILLÉ : CALCUL DU BÉNÉFICE */}
       <div className="bg-gradient-to-br from-[#064E3B] via-emerald-900 to-teal-950 text-white p-6 sm:p-8 rounded-3rem shadow-xl border border-emerald-700/50 space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-emerald-700/50 pb-5">
           <div className="flex items-center space-x-3">
@@ -349,22 +333,6 @@ const DashboardModule = ({
               {formatFCFA(expectedProfitStock)}
             </p>
             <span className="text-[10px] text-emerald-200 font-semibold block">Prix de Vente - Prix d'Achat</span>
-          </div>
-        </div>
-
-        {/* Détails complémentaires : Dépenses & Bénéfice Net Réel */}
-        <div className="pt-4 border-t border-emerald-700/40 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-          <div className="bg-emerald-950/60 p-3.5 rounded-2xl border border-emerald-700/40">
-            <span className="text-emerald-300 font-bold block">Ventes encaissées :</span>
-            <strong className="text-white text-sm">{formatFCFA(totalRevenue)}</strong> ({totalSalesCount} vente(s))
-          </div>
-          <div className="bg-emerald-950/60 p-3.5 rounded-2xl border border-emerald-700/40">
-            <span className="text-red-300 font-bold block">Somme des dépenses & charges :</span>
-            <strong className="text-red-200 text-sm">- {formatFCFA(totalExpenses)}</strong> ({(expenses || []).length} charge(s))
-          </div>
-          <div className="bg-emerald-950/60 p-3.5 rounded-2xl border border-emerald-700/40">
-            <span className="text-emerald-300 font-bold block">Bénéfice Net Réel en poche :</span>
-            <strong className="text-emerald-300 text-sm">{formatFCFA(netProfit)}</strong>
           </div>
         </div>
       </div>
