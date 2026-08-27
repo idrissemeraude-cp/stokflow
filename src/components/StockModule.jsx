@@ -189,8 +189,8 @@ const StockModule = ({
         </div>
       </div>
 
-      {/* 3 Counter Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Counter 1: Total Products */}
         <div className="bg-white p-5 rounded-2rem border border-emerald-100 shadow-sm flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -205,26 +205,7 @@ const StockModule = ({
           <span className="text-xs text-gray-400 font-semibold">{totalStockUnits} unités</span>
         </div>
 
-        {/* Counter 2: Low Stock Alerts (Red) */}
-        <div 
-          onClick={() => setShowLowStockOnly(!showLowStockOnly)}
-          className={`bg-white p-5 rounded-2rem border shadow-sm flex items-center justify-between cursor-pointer transition-all ${
-            showLowStockOnly ? 'border-red-500 ring-2 ring-red-500/20' : 'border-red-200'
-          }`}
-        >
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2rem bg-red-50 text-red-600 flex items-center justify-center font-bold">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs text-red-800 uppercase font-semibold">Alertes Stock Bas</p>
-              <p className="text-2xl font-bold text-red-600">{lowStockCount}</p>
-            </div>
-          </div>
-          <span className="text-xs text-red-600 font-semibold">{showLowStockOnly ? 'Filtré' : 'Voir'}</span>
-        </div>
-
-        {/* Counter 3: In Stock */}
+        {/* Counter 2: In Stock */}
         <div className="bg-white p-5 rounded-2rem border border-emerald-100 shadow-sm flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-2rem bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
