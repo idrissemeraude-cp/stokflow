@@ -59,6 +59,7 @@ const DashboardModule = ({
 
   // 2. PRIX TOTAL DE VENTE (Tout ce qu'on devrait recevoir si tout est vendu)
   const totalSalePriceStock = products.reduce((acc, p) => acc + ((Number(p.salePrice) || 0) * (Number(p.stock) || 0)), 0);
+  const totalStockValue = totalSalePriceStock;
 
   // 3. BÉNÉFICE ESTIMÉ À LA FIN (Prix Total de Vente - Prix Total d'Achat)
   const expectedProfitStock = totalSalePriceStock - totalPurchasePriceStock;
