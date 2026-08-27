@@ -51,7 +51,7 @@ const ReceiptModal = ({ sale, storeInfo, onClose }) => {
           <div className="flex items-center space-x-2">
             <Receipt className="w-5 h-5 text-emerald-400" />
             <h3 className="font-bold text-base tracking-wide font-sans">
-              Reçu de Caisse & Facture #{sale.id.replace('sale-', '')}
+              Reçu de Caisse & Facture #{String(sale.id || '').replace('sale-', '')}
             </h3>
           </div>
 

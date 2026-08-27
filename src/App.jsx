@@ -735,7 +735,7 @@ export function App() {
     const saleToDelete = sales.find(s => s.id === saleId);
     if (!saleToDelete) return;
     
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer la vente #${saleId.replace('sale-', '').substring(0, 8)} ? Les stocks des produits vendus seront automatiquement réajustés.`)) {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer la vente #${String(saleId || '').replace('sale-', '').substring(0, 8)} ? Les stocks des produits vendus seront automatiquement réajustés.`)) {
       return;
     }
 

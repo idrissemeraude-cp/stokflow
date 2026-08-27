@@ -1064,7 +1064,7 @@ const PosModule = ({
                     <div>
                       <div className="flex items-center space-x-2">
                         <span className="font-mono text-xs font-bold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded">
-                          #{sale.id.replace('sale-', '').substring(0, 8)}
+                          #{String(sale.id || '').replace('sale-', '').substring(0, 8)}
                         </span>
                         <span className="font-bold text-sm text-gray-900">{sale.clientName}</span>
                         <span className="text-xs text-gray-400">• {formatDateFr(sale.createdAt)}</span>

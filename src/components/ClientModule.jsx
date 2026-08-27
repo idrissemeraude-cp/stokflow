@@ -613,7 +613,7 @@ const ClientModule = ({
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-2.5">
                             <div className="flex items-center space-x-2">
                               <span className="font-mono text-xs font-extrabold px-2.5 py-1 rounded-xl bg-gray-100 text-gray-800">
-                                #{sale.id.replace('sale-', '').substring(0, 8)}
+                                #{String(sale.id || '').replace('sale-', '').substring(0, 8)}
                               </span>
                               <span className="text-xs text-gray-500 flex items-center gap-1">
                                 <Calendar className="w-3.5 h-3.5 text-gray-400" />

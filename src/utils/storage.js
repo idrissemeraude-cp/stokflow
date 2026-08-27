@@ -127,7 +127,7 @@ export const generateReceiptWhatsAppText = (sale, storeInfo) => {
   text += `━━━━━━━━━━━━━━━━━━━━━\n`;
   text += `📍 ${storeInfo.city} | 📞 ${storeInfo.phone}\n`;
   text += `📅 Date : ${formatDateFr(sale.createdAt)}\n`;
-  text += `🏷️ Réf Vente : #${sale.id.replace('sale-', '')}\n`;
+  text += `🏷️ Réf Vente : #${String(sale.id || '').replace('sale-', '')}\n`;
   text += `👤 Client : *${sale.clientName}*\n`;
   text += `━━━━━━━━━━━━━━━━━━━━━\n`;
   text += `*DÉTAILS DES ARTICLES :*\n${itemsList}\n`;

@@ -92,8 +92,8 @@ const DashboardModule = ({
       rawType: 'SALE',
       rawObj: s,
       type: 'VENTE',
-      title: `Vente Caisse #${s.id.replace('sale-', '')}`,
-      subtitle: `${s.clientName} • ${(s.items || []).length} article(s)`,
+      title: `Vente Caisse #${String(s.id || '').replace('sale-', '')}`,
+      subtitle: `${s.clientName || 'Client'} • ${(s.items || []).length} article(s)`,
       amount: s.paymentType === 'CASH' 
         ? `+${formatFCFA(s.totalAmount)} (Comptant)`
         : `Acompte: ${formatFCFA(s.advancePaid)} / Total: ${formatFCFA(s.totalAmount)}`,
@@ -111,7 +111,7 @@ const DashboardModule = ({
       rawObj: p,
       type: 'REGLEMENT',
       title: `Règlement Créance`,
-      subtitle: `${p.clientName} via ${(p.paymentMethod || 'CASH').replace('_', ' ')}`,
+      subtitle: `${p.clientName || 'Client'} via ${String(p.paymentMethod || 'CASH').replace('_', ' ')}`,
       amount: `+${formatFCFA(p.amount)} (Règlement)`,
       amountColor: 'text-emerald-600 font-bold',
       badge: 'Encaissement',
