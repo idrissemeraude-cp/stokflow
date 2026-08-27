@@ -20,7 +20,8 @@ import {
   Wallet,
   Calculator,
   PiggyBank,
-  TrendingDown
+  TrendingDown,
+  ShoppingBag
 } from 'lucide-react';
 import { formatFCFA, formatDateFr, getDebtUrgencyStatus } from '../utils/storage';
 
@@ -47,15 +48,20 @@ const DashboardModule = ({
   // Total Créances Restantes à recouvrer (Red)
   const totalPendingCredit = sales.reduce((acc, sale) => acc + (sale.remainingDue || 0), 0);
 
-  // Valeur totale du stock
-  const totalStockValue = products.reduce((acc, p) => acc + (p.salePrice * p.stock), 0);
-  const totalStockCount = products.reduce((acc, p) => acc + p.stock, 0);
+  // CALCULS FINANCIERS DU STOCK ET DES BÉNÉFICES
+  // 1. PRIX TOTAL D'ACHAT (Tout ce qui a été acheté en stock)
+  const totalPurchasePriceStock = products.reduce((acc, p) => acc + ((Number(p.purchasePrice) || 0) * (Number(p.stock) || 0)), 0);
 
-  // CALCULS FINANCIERS DE BÉNÉFICE ET MARGES
-  // 1. Chiffre d'Affaires Total des Ventes
+  // 2. PRIX TOTAL DE VENTE (Tout ce qu'on devrait recevoir si tout est vendu)
+  const totalSalePriceStock = products.reduce((acc, p) => acc + ((Number(p.salePrice) || 0) * (Number(p.stock) || 0)), 0);
+
+  // 3. BÉNÉFICE ESTIMÉ À LA FIN (Prix Total de Vente - Prix Total d'Achat)
+  const expectedProfitStock = totalSalePriceStock - totalPurchasePriceStock;
+
+  const totalStockCount = products.reduce((acc, p) => acc + (Number(p.stock) || 0), 0);
+
+  // CALCULS DES VENTES RÉALISÉES ET DÉPENSES
   const totalRevenue = sales.reduce((acc, s) => acc + (Number(s.totalAmount) || 0), 0);
-
-  // 2. Coût des Marchandises Vendues (Prix d'achat fournisseurs des articles vendus)
   const totalCostOfGoodsSold = sales.reduce((acc, s) => {
     return acc + (s.items || []).reduce((itemAcc, item) => {
       const prod = products.find(p => p.id === item.productId);
@@ -63,21 +69,9 @@ const DashboardModule = ({
       return itemAcc + (purchasePrice * item.qty);
     }, 0);
   }, 0);
-
-  // 3. Marge Brute Réalisée (Chiffre d'affaires - Prix d'achat vendus)
   const grossMargin = Math.max(0, totalRevenue - totalCostOfGoodsSold);
-
-  // 4. Somme des Dépenses & Charges de la boutique
   const totalExpenses = (expenses || []).reduce((acc, exp) => acc + (Number(exp.amount) || 0), 0);
-
-  // 5. BÉNÉFICE NET RÉEL À LA FIN (Marge Brute - Dépenses Opérationnelles)
   const netProfit = grossMargin - totalExpenses;
-
-  // 6. Estimation du Bénéfice Potentiel du Stock Restant en Boutique
-  const potentialStockProfit = products.reduce((acc, p) => {
-    const marginPerUnit = Math.max(0, (p.salePrice || 0) - (p.purchasePrice || 0));
-    return acc + (marginPerUnit * (p.stock || 0));
-  }, 0);
 
   // Articles en alerte stock bas
   const lowStockProducts = products.filter(p => p.stock <= p.lowStockThreshold);
@@ -207,81 +201,68 @@ const DashboardModule = ({
 
       {/* 4 KPI Top Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1 : Recettes Totales */}
-        <div className="bg-white p-5 rounded-2rem border border-emerald-100 shadow-sm hover:shadow-md transition-all">
+        {/* KPI 1 : Prix Total d'Achat */}
+        <div className="bg-white p-5 rounded-2rem border border-amber-200 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500 uppercase font-semibold">Recettes Encaissées</span>
+            <span className="text-xs text-amber-900 uppercase font-extrabold">Prix Total d'Achat</span>
+            <div className="w-9 h-9 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
+              <ShoppingBag className="w-5 h-5" />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-amber-700 mt-2">
+            {formatFCFA(totalPurchasePriceStock)}
+          </p>
+          <span className="text-[10px] text-gray-500 font-medium mt-2 block">
+            Coût d'achat de tout ce que vous avez acheté ({totalStockCount} unités)
+          </span>
+        </div>
+
+        {/* KPI 2 : Prix Total de Vente (À recevoir) */}
+        <div className="bg-white p-5 rounded-2rem border border-emerald-200 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-emerald-900 uppercase font-extrabold">Prix Total de Vente</span>
             <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <TrendingUp className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-emerald-700 mt-2">
-            {formatFCFA(totalCashCollected)}
+          <p className="text-2xl font-black text-emerald-700 mt-2">
+            {formatFCFA(totalSalePriceStock)}
           </p>
-          <div className="flex items-center space-x-1.5 mt-2">
-            {totalSalesCount > 0 ? (
-              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <ArrowUpRight className="w-3 h-3" /> {totalSalesCount} vente{totalSalesCount > 1 ? 's' : ''}
-              </span>
-            ) : (
-              <span className="bg-gray-100 text-gray-600 text-[10px] font-medium px-2 py-0.5 rounded-full">
-                0 encaissement
-              </span>
-            )}
-          </div>
+          <span className="text-[10px] text-gray-500 font-medium mt-2 block">
+            Montant total à recevoir si tout est vendu
+          </span>
         </div>
 
-        {/* KPI 2 : Bénéfice Net Réel à la Fin */}
-        <div className="bg-white p-5 rounded-2rem border border-emerald-200 shadow-sm hover:shadow-md transition-all">
+        {/* KPI 3 : Bénéfice Attendu (À la fin) */}
+        <div className="bg-white p-5 rounded-2rem border border-emerald-300 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-emerald-900 uppercase font-extrabold">Bénéfice Net Réel</span>
+            <span className="text-xs text-emerald-900 uppercase font-extrabold">Bénéfice à la fin</span>
             <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
               <Wallet className="w-5 h-5" />
             </div>
           </div>
-          <p className={`text-2xl font-black mt-2 ${netProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+          <p className={`text-2xl font-black mt-2 ${expectedProfitStock >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+            {formatFCFA(expectedProfitStock)}
+          </p>
+          <span className="text-[10px] text-emerald-800 font-bold mt-2 block">
+            Bénéfice que vous êtes censé avoir (Vente - Achat)
+          </span>
+        </div>
+
+        {/* KPI 4 : Bénéfice Net Réel actuel en poche */}
+        <div className="bg-white p-5 rounded-2rem border border-blue-200 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-blue-900 uppercase font-extrabold">Bénéfice Net Réel</span>
+            <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+              <PiggyBank className="w-5 h-5" />
+            </div>
+          </div>
+          <p className={`text-2xl font-black mt-2 ${netProfit >= 0 ? 'text-blue-700' : 'text-red-600'}`}>
             {formatFCFA(netProfit)}
           </p>
-          <div className="flex items-center space-x-1.5 mt-2">
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${netProfit >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}`}>
-              {netProfit >= 0 ? 'Rentable' : 'Déficit'} (Marge: {formatFCFA(grossMargin)})
-            </span>
-          </div>
-        </div>
-
-        {/* KPI 3 : Valeur du Stock & Bénéfice Potentiel */}
-        <div className="bg-white p-5 rounded-2rem border border-emerald-100 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500 uppercase font-semibold">Stock & Bénéfice Est.</span>
-            <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Package className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-gray-900 mt-2">
-            {formatFCFA(totalStockValue)}
-          </p>
-          <p className="text-xs text-emerald-700 font-bold mt-2 truncate">
-            Bénéfice potentiel stock: +{formatFCFA(potentialStockProfit)}
-          </p>
-        </div>
-
-        {/* KPI 4 : Créances Clients */}
-        <div 
-          onClick={() => setActiveTab('relances')}
-          className="bg-white p-5 rounded-2rem border border-amber-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-amber-800 uppercase font-bold">Créances Clients</span>
-            <div className="w-9 h-9 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
-              <CreditCard className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-amber-700 mt-2">
-            {formatFCFA(totalPendingCredit)}
-          </p>
-          <p className="text-xs text-amber-700 font-medium mt-2">
-            {creditSalesToRemind.length} relance{creditSalesToRemind.length > 1 ? 's' : ''} en attente
-          </p>
+          <span className="text-[10px] text-gray-500 font-medium mt-2 block">
+            Gain net réel encaissé (après ventes & dépenses)
+          </span>
         </div>
       </div>
 
@@ -294,10 +275,10 @@ const DashboardModule = ({
             </div>
             <div>
               <h3 className="font-extrabold text-lg sm:text-xl text-white font-sans tracking-tight">
-                Calcul & Bilan des Bénéfices Réels
+                Bilan des Prix d'Achat, de Vente et du Bénéfice Final
               </h3>
               <p className="text-xs text-emerald-200/80 mt-0.5">
-                Déduction automatique des coûts d'achat fournisseurs et des dépenses opérationnelles.
+                Calcul en 3 étapes : Prix d'Achat + Prix de Vente = Bénéfice à la fin.
               </p>
             </div>
           </div>
@@ -312,45 +293,50 @@ const DashboardModule = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Item 1 : CA Total Ventes */}
-          <div className="bg-white/10 backdrop-blur-md p-4 rounded-2rem border border-white/10 space-y-1">
-            <span className="text-[11px] text-emerald-200/80 font-bold uppercase block">1. Chiffre d'Affaires (Ventes)</span>
-            <p className="text-xl font-black text-white">{formatFCFA(totalRevenue)}</p>
-            <span className="text-[10px] text-emerald-300 block">{totalSalesCount} vente(s) réalisée(s)</span>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Étape 1 : Prix Total d'Achat */}
+          <div className="bg-white/10 backdrop-blur-md p-5 rounded-2rem border border-white/10 space-y-1.5">
+            <span className="text-xs text-amber-200/90 font-extrabold uppercase tracking-wider block">
+              1. Prix Total d'Achat (Tout ce que vous avez acheté)
+            </span>
+            <p className="text-2xl font-black text-amber-300">{formatFCFA(totalPurchasePriceStock)}</p>
+            <span className="text-[10px] text-amber-200/70 block">Somme totale des coûts d'achat fournisseurs</span>
           </div>
 
-          {/* Item 2 : Coût des Achats Vendus */}
-          <div className="bg-white/10 backdrop-blur-md p-4 rounded-2rem border border-white/10 space-y-1">
-            <span className="text-[11px] text-amber-200/90 font-bold uppercase block">2. Prix d'Achat des Articles</span>
-            <p className="text-xl font-black text-amber-300">- {formatFCFA(totalCostOfGoodsSold)}</p>
-            <span className="text-[10px] text-amber-200/70 block">Marge brute: {formatFCFA(grossMargin)}</span>
+          {/* Étape 2 : Prix Total de Vente */}
+          <div className="bg-white/10 backdrop-blur-md p-5 rounded-2rem border border-white/10 space-y-1.5">
+            <span className="text-xs text-emerald-200/90 font-extrabold uppercase tracking-wider block">
+              2. Prix Total de Vente (Tout ce que vous devez recevoir)
+            </span>
+            <p className="text-2xl font-black text-white">{formatFCFA(totalSalePriceStock)}</p>
+            <span className="text-[10px] text-emerald-300 block">Somme totale des prix de vente fixés</span>
           </div>
 
-          {/* Item 3 : Somme des Dépenses */}
-          <div className="bg-white/10 backdrop-blur-md p-4 rounded-2rem border border-white/10 space-y-1">
-            <span className="text-[11px] text-red-200/90 font-bold uppercase block">3. Dépenses & Charges (Dépensés)</span>
-            <p className="text-xl font-black text-red-300">- {formatFCFA(totalExpenses)}</p>
-            <span className="text-[10px] text-red-200/70 block">{(expenses || []).length} charge(s) enregistrée(s)</span>
-          </div>
-
-          {/* Item 4 : BÉNÉFICE NET FINAL */}
-          <div className="bg-emerald-500/30 backdrop-blur-md p-4 rounded-2rem border border-emerald-400/50 space-y-1 shadow-inner">
-            <span className="text-[11px] text-emerald-100 font-extrabold uppercase block">4. Bénéfice Net Réel (À la fin)</span>
-            <p className={`text-xl sm:text-2xl font-black ${netProfit >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
-              {formatFCFA(netProfit)}
+          {/* Étape 3 : Bénéfice à la fin */}
+          <div className="bg-emerald-500/30 backdrop-blur-md p-5 rounded-2rem border border-emerald-400/50 space-y-1.5 shadow-inner">
+            <span className="text-xs text-emerald-100 font-black uppercase tracking-wider block">
+              3. Bénéfice (Ce que vous êtes censé avoir à la fin)
+            </span>
+            <p className={`text-2xl sm:text-3xl font-black ${expectedProfitStock >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+              {formatFCFA(expectedProfitStock)}
             </p>
-            <span className="text-[10px] text-emerald-200 font-semibold block">Gain net réel en poche</span>
+            <span className="text-[10px] text-emerald-200 font-semibold block">Prix de Vente - Prix d'Achat</span>
           </div>
         </div>
 
-        {/* Sub-note: Potential stock profit estimation */}
-        <div className="pt-3 border-t border-emerald-700/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-emerald-100/90">
-          <div className="flex items-center space-x-2">
-            <Sparkles className="w-4 h-4 text-emerald-300 flex-shrink-0" />
-            <span>
-              <strong>Bénéfice estimé sur le stock en boutique :</strong> Si vous vendez tout votre stock actuel ({totalStockCount} unités), vous réaliserez un bénéfice supplémentaire de <strong>+{formatFCFA(potentialStockProfit)}</strong>.
-            </span>
+        {/* Détails complémentaires : Dépenses & Bénéfice Net Réel */}
+        <div className="pt-4 border-t border-emerald-700/40 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+          <div className="bg-emerald-950/60 p-3.5 rounded-2xl border border-emerald-700/40">
+            <span className="text-emerald-300 font-bold block">Ventes encaissées :</span>
+            <strong className="text-white text-sm">{formatFCFA(totalRevenue)}</strong> ({totalSalesCount} vente(s))
+          </div>
+          <div className="bg-emerald-950/60 p-3.5 rounded-2xl border border-emerald-700/40">
+            <span className="text-red-300 font-bold block">Somme des dépenses & charges :</span>
+            <strong className="text-red-200 text-sm">- {formatFCFA(totalExpenses)}</strong> ({(expenses || []).length} charge(s))
+          </div>
+          <div className="bg-emerald-950/60 p-3.5 rounded-2xl border border-emerald-700/40">
+            <span className="text-emerald-300 font-bold block">Bénéfice Net Réel en poche :</span>
+            <strong className="text-emerald-300 text-sm">{formatFCFA(netProfit)}</strong>
           </div>
         </div>
       </div>
