@@ -715,6 +715,114 @@ export function App() {
     syncEngine.enqueue('UPSERT', 'whatsapp_logs', mappers.waLogToRow(logPayload));
   };
 
+  // Handlers pour la suppression des Ventes, Règlements et Logs WhatsApp
+  const handleDeleteSale = (saleId) => {
+    if (userRole === 'CASHIER') {
+      alert('⛔ Action non autorisée en mode Caissier.');
+      return;
+    }
+    const saleToDelete = sales.find(s => s.id === saleId);
+    if (!saleToDelete) return;
+    
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer la vente #${saleId.replace('sale-', '').substring(0, 8)} ? Les stocks des produits vendus seront automatiquement réajustés.`)) {
+      return;
+    }
+
+    // Réajustement des stocks
+    if (saleToDelete.items && Array.isArray(saleToDelete.items)) {
+      setProducts(prevProducts => {
+        const updated = prevProducts.map(prod => {
+          const item = saleToDelete.items.find(i => i.productId === prod.id);
+          if (item) {
+            const restoredProd = {
+              ...prod,
+              stock: prod.stock + (Number(item.qty) || 0)
+            };
+            syncEngine.enqueue('UPSERT', 'products', mappers.productToRow(restoredProd));
+            return restoredProd;
+          }
+          return prod;
+        });
+        saveProducts(updated);
+        return updated;
+      });
+    }
+
+    // Suppression de la vente
+    setSales(prev => {
+      const updated = prev.filter(s => s.id !== saleId);
+      saveSales(updated);
+      return updated;
+    });
+
+    // Suppression des paiements associés
+    setPayments(prev => {
+      const updated = prev.filter(p => p.saleId !== saleId);
+      savePayments(updated);
+      return updated;
+    });
+
+    // Synchro Supabase
+    syncEngine.enqueue('DELETE', 'sales', { id: saleId });
+  };
+
+  const handleDeletePayment = (paymentId) => {
+    if (userRole !== 'ADMIN') {
+      alert('Seul un administrateur peut supprimer un règlement de créance.');
+      return;
+    }
+    const paymentToDelete = payments.find(p => p.id === paymentId);
+    if (!paymentToDelete) return;
+
+    if (!window.confirm(`Voulez-vous vraiment supprimer ce règlement de créance ?`)) {
+      return;
+    }
+
+    setPayments(prev => {
+      const updated = prev.filter(p => p.id !== paymentId);
+      savePayments(updated);
+      return updated;
+    });
+
+    // Ajuster le restant dû de la vente si liée
+    if (paymentToDelete.saleId) {
+      setSales(prevSales => {
+        const updated = prevSales.map(s => {
+          if (s.id === paymentToDelete.saleId) {
+            const restoredDue = (s.remainingDue || 0) + (paymentToDelete.amount || 0);
+            const newStatus = restoredDue >= s.totalAmount ? 'UNPAID' : 'PARTIAL';
+            const updatedSale = { ...s, remainingDue: restoredDue, status: newStatus };
+            syncEngine.enqueue('UPSERT', 'sales', mappers.saleToRow(updatedSale));
+            return updatedSale;
+          }
+          return s;
+        });
+        saveSales(updated);
+        return updated;
+      });
+    }
+
+    syncEngine.enqueue('DELETE', 'payments', { id: paymentId });
+  };
+
+  const handleDeleteWaLog = (logId) => {
+    setWaLogs(prev => {
+      const updated = prev.filter(w => w.id !== logId);
+      saveWaLogs(updated);
+      return updated;
+    });
+    syncEngine.enqueue('DELETE', 'whatsapp_logs', { id: logId });
+  };
+
+  const handleClearAllWaLogs = () => {
+    if (!window.confirm("Voulez-vous vraiment vider tout l'historique des relances WhatsApp ?")) return;
+    waLogs.forEach(w => {
+      syncEngine.enqueue('DELETE', 'whatsapp_logs', { id: w.id });
+    });
+    setWaLogs([]);
+    saveWaLogs([]);
+  };
+
   // Export JSON Backup
   const handleExportData = () => {
     const fullBackup = {
@@ -809,6 +917,9 @@ export function App() {
                   setActiveTab={setActiveTab}
                   onOpenCreditModal={(sale) => setCreditModalSale(sale)}
                   onOpenReceiptModal={(sale) => setCurrentReceiptSale(sale)}
+                  onDeleteSale={handleDeleteSale}
+                  onDeletePayment={handleDeletePayment}
+                  onDeleteExpense={handleDeleteExpense}
                 />
               )}
 
@@ -816,7 +927,9 @@ export function App() {
                 <PosModule
                   products={products}
                   clients={clients}
+                  sales={sales}
                   onSaveSale={handleSaveSale}
+                  onDeleteSale={handleDeleteSale}
                   onSaveClient={handleSaveClient}
                   onOpenReceiptModal={(sale) => setCurrentReceiptSale(sale)}
                   setActiveTab={setActiveTab}
@@ -870,6 +983,8 @@ export function App() {
                   payments={payments}
                   onSaveClient={handleSaveClient}
                   onDeleteClient={handleDeleteClient}
+                  onDeleteSale={handleDeleteSale}
+                  onDeletePayment={handleDeletePayment}
                   userRole={userRole}
                   onOpenCreditModal={(sale) => setCreditModalSale(sale)}
                   onOpenReceiptModal={(sale) => setCurrentReceiptSale(sale)}
@@ -883,6 +998,8 @@ export function App() {
                   storeInfo={storeInfo}
                   waLogs={waLogs}
                   onSendWhatsappLog={handleSendWhatsappLog}
+                  onDeleteWaLog={handleDeleteWaLog}
+                  onClearAllWaLogs={handleClearAllWaLogs}
                   onOpenCreditModal={(sale) => setCreditModalSale(sale)}
                 />
               )}

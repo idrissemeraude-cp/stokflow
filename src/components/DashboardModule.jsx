@@ -21,7 +21,8 @@ import {
   Calculator,
   PiggyBank,
   TrendingDown,
-  ShoppingBag
+  ShoppingBag,
+  Trash2
 } from 'lucide-react';
 import { formatFCFA, formatDateFr, getDebtUrgencyStatus } from '../utils/storage';
 
@@ -32,7 +33,11 @@ const DashboardModule = ({
   payments = [], 
   expenses = [],
   setActiveTab,
-  onOpenCreditModal
+  onOpenCreditModal,
+  onOpenReceiptModal,
+  onDeleteSale,
+  onDeletePayment,
+  onDeleteExpense
 }) => {
   const [chartPeriod, setChartPeriod] = useState('6_MONTHS');
 
@@ -83,14 +88,17 @@ const DashboardModule = ({
   const recentMovements = [
     ...sales.map(s => ({
       id: `m-sale-${s.id}`,
+      rawId: s.id,
+      rawType: 'SALE',
+      rawObj: s,
       type: 'VENTE',
       title: `Vente Caisse #${s.id.replace('sale-', '')}`,
-      subtitle: `${s.clientName} • ${s.items.length} article(s)`,
+      subtitle: `${s.clientName} • ${(s.items || []).length} article(s)`,
       amount: s.paymentType === 'CASH' 
         ? `+${formatFCFA(s.totalAmount)} (Comptant)`
         : `Acompte: ${formatFCFA(s.advancePaid)} / Total: ${formatFCFA(s.totalAmount)}`,
       amountColor: s.paymentType === 'CASH' ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold',
-      badge: s.paymentType === 'CASH' ? 'Payé Espèces (Vert)' : 'Avance Crédit (Rouge)',
+      badge: s.paymentType === 'CASH' ? 'Payé Espèces' : 'Avance Crédit',
       badgeColor: s.paymentType === 'CASH' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700',
       icon: ShoppingCart,
       iconBg: s.paymentType === 'CASH' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600',
@@ -98,18 +106,37 @@ const DashboardModule = ({
     })),
     ...payments.map(p => ({
       id: `m-pay-${p.id}`,
+      rawId: p.id,
+      rawType: 'PAYMENT',
+      rawObj: p,
       type: 'REGLEMENT',
       title: `Règlement Créance`,
-      subtitle: `${p.clientName} via ${p.paymentMethod.replace('_', ' ')}`,
+      subtitle: `${p.clientName} via ${(p.paymentMethod || 'CASH').replace('_', ' ')}`,
       amount: `+${formatFCFA(p.amount)} (Règlement)`,
       amountColor: 'text-emerald-600 font-bold',
-      badge: 'Encaissement (Vert)',
+      badge: 'Encaissement',
       badgeColor: 'bg-emerald-100 text-emerald-800',
       icon: DollarSign,
       iconBg: 'bg-emerald-50 text-emerald-600',
       date: formatDateFr(p.date)
+    })),
+    ...(expenses || []).map(e => ({
+      id: `m-exp-${e.id}`,
+      rawId: e.id,
+      rawType: 'EXPENSE',
+      rawObj: e,
+      type: 'DEPENSE',
+      title: `Dépense: ${e.title}`,
+      subtitle: `${e.category || 'Divers'} via ${e.paymentMethod || 'CASH'}`,
+      amount: `-${formatFCFA(e.amount)}`,
+      amountColor: 'text-amber-600 font-bold',
+      badge: 'Dépense',
+      badgeColor: 'bg-amber-100 text-amber-800',
+      icon: TrendingDown,
+      iconBg: 'bg-amber-50 text-amber-600',
+      date: formatDateFr(e.date)
     }))
-  ].slice(0, 5);
+  ].slice(0, 6);
 
   // Top clients ranking
   const topClients = clients.map(client => {
@@ -446,13 +473,28 @@ const DashboardModule = ({
                       </div>
                     </div>
 
-                    <div className="text-right">
-                      <p className={`text-xs font-bold ${mov.amountColor}`}>
-                        {mov.amount}
-                      </p>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold inline-block mt-0.5 ${mov.badgeColor}`}>
-                        {mov.badge}
-                      </span>
+                    <div className="flex items-center space-x-3">
+                      <div className="text-right">
+                        <p className={`text-xs font-bold ${mov.amountColor}`}>
+                          {mov.amount}
+                        </p>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold inline-block mt-0.5 ${mov.badgeColor}`}>
+                          {mov.badge}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (mov.rawType === 'SALE' && onDeleteSale) onDeleteSale(mov.rawId);
+                          else if (mov.rawType === 'PAYMENT' && onDeletePayment) onDeletePayment(mov.rawId);
+                          else if (mov.rawType === 'EXPENSE' && onDeleteExpense) onDeleteExpense(mov.rawId);
+                        }}
+                        title="Supprimer ce mouvement"
+                        className="p-1.5 rounded-xl text-gray-300 hover:text-red-600 hover:bg-red-50 transition-all flex-shrink-0 border border-transparent hover:border-red-200"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 );

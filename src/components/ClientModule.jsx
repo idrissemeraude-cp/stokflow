@@ -38,6 +38,8 @@ const ClientModule = ({
   payments = [], 
   onSaveClient, 
   onDeleteClient,
+  onDeleteSale,
+  onDeletePayment,
   userRole = 'ADMIN',
   onOpenCreditModal,
   onOpenReceiptModal,
@@ -715,6 +717,16 @@ const ClientModule = ({
                                   <span>Régler Crédit</span>
                                 </button>
                               )}
+
+                              {onDeleteSale && (
+                                <button
+                                  onClick={() => onDeleteSale(sale.id)}
+                                  className="p-1.5 rounded-xl bg-white hover:bg-red-50 text-gray-400 hover:text-red-600 border border-gray-200 hover:border-red-200 transition-all"
+                                  title="Supprimer cette vente"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </div>
 
@@ -743,6 +755,7 @@ const ClientModule = ({
                           <th className="p-3">Montant Encaissé</th>
                           <th className="p-3">Mode Règlement</th>
                           <th className="p-3">Note / Référence</th>
+                          <th className="p-3 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-purple-50">
@@ -761,6 +774,17 @@ const ClientModule = ({
                             </td>
                             <td className="p-3 text-gray-500 text-[11px]">
                               {p.note || 'Règlement de dette'}
+                            </td>
+                            <td className="p-3 text-right">
+                              {onDeletePayment && (
+                                <button
+                                  onClick={() => onDeletePayment(p.id)}
+                                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                                  title="Supprimer ce paiement"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}

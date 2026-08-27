@@ -12,16 +12,19 @@ import {
   Copy,
   Terminal,
   RefreshCw,
-  Sliders
+  Sliders,
+  Trash2
 } from 'lucide-react';
 import { formatFCFA, formatDateFr, getDebtUrgencyStatus, getDaysDiffFromToday } from '../utils/storage';
 import { generateWhatsappMessage, buildWhatsappLink, formatCleanPhone } from '../utils/whatsappAi';
 
 const WhatsappRelanceModule = ({ 
-  sales, 
-  storeInfo, 
-  waLogs, 
+  sales = [], 
+  storeInfo = {}, 
+  waLogs = [], 
   onSendWhatsappLog, 
+  onDeleteWaLog,
+  onClearAllWaLogs,
   onOpenCreditModal 
 }) => {
   // Only credit sales with pending debt (> 0)
@@ -135,7 +138,7 @@ const WhatsappRelanceModule = ({
               <Bot className="w-4.5 h-4.5" />
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-white font-sans">
-              Relances WhatsApp des Créances (Rouge)
+              Relances WhatsApp des Créances
             </h2>
           </div>
           <p className="text-xs text-emerald-100/80 mt-1">
@@ -143,215 +146,168 @@ const WhatsappRelanceModule = ({
           </p>
         </div>
 
-        <button
-          onClick={() => setShowWebhookLog(!showWebhookLog)}
-          className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-4 py-2.5 rounded-2rem border border-white/10 flex items-center space-x-2 transition-all"
-        >
-          <Terminal className="w-4 h-4 text-emerald-300" />
-          <span>{showWebhookLog ? 'Masquer Logs Webhook' : 'Voir Logs API Webhook'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowWebhookLog(!showWebhookLog)}
+            className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-4 py-2.5 rounded-2rem border border-white/10 flex items-center space-x-2 transition-all"
+          >
+            <Terminal className="w-4 h-4 text-emerald-300" />
+            <span>{showWebhookLog ? 'Masquer le Journal' : 'Journal des Relances'} ({waLogs.length})</span>
+          </button>
+        </div>
       </div>
 
-      {/* Main Layout */}
+      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Left 6 Cols */}
-        <div className="lg:col-span-6 space-y-4">
+        {/* Left Column: Filter Tabs & Credit Sales List */}
+        <div className="lg:col-span-5 space-y-4">
           
           {/* Urgency Filter Tabs */}
-          <div className="bg-white p-2 rounded-2rem border border-emerald-200 shadow-sm flex items-center gap-1 overflow-x-auto">
+          <div className="flex bg-emerald-900/40 p-1.5 rounded-2rem border border-emerald-700/50 text-xs font-bold">
             <button
               onClick={() => setActiveUrgencyTab('ALL')}
-              className={`px-3.5 py-2 rounded-2rem text-xs font-semibold transition-all whitespace-nowrap ${
-                activeUrgencyTab === 'ALL' ? 'bg-[#064E3B] text-white font-bold' : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`flex-1 py-2 rounded-xl transition-all ${activeUrgencyTab === 'ALL' ? 'bg-emerald-600 text-white shadow' : 'text-emerald-200 hover:text-white'}`}
             >
-              Toutes ({creditSales.length})
+              Tous ({creditSales.length})
             </button>
-
-            <button
-              onClick={() => setActiveUrgencyTab('OVERDUE')}
-              className={`px-3.5 py-2 rounded-2rem text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1 ${
-                activeUrgencyTab === 'OVERDUE' ? 'bg-red-600 text-white font-bold' : 'text-red-600 hover:bg-red-50'
-              }`}
-            >
-              <AlertTriangle className="w-3.5 h-3.5" />
-              Retards ({creditSales.filter(s => getDebtUrgencyStatus(s.dueDate).code === 'OVERDUE').length})
-            </button>
-
-            <button
-              onClick={() => setActiveUrgencyTab('JOUR_J')}
-              className={`px-3.5 py-2 rounded-2rem text-xs font-semibold transition-all whitespace-nowrap ${
-                activeUrgencyTab === 'JOUR_J' ? 'bg-red-500 text-white font-bold' : 'text-red-800 hover:bg-red-50'
-              }`}
-            >
-              Jour J ({creditSales.filter(s => getDebtUrgencyStatus(s.dueDate).code === 'DUE_TODAY').length})
-            </button>
-
             <button
               onClick={() => setActiveUrgencyTab('J-2')}
-              className={`px-3.5 py-2 rounded-2rem text-xs font-semibold transition-all whitespace-nowrap ${
-                activeUrgencyTab === 'J-2' ? 'bg-emerald-600 text-white font-bold' : 'text-emerald-700 hover:bg-emerald-50'
-              }`}
+              className={`flex-1 py-2 rounded-xl transition-all ${activeUrgencyTab === 'J-2' ? 'bg-blue-600 text-white shadow' : 'text-emerald-200 hover:text-white'}`}
             >
-              J-2 Doux ({creditSales.filter(s => getDebtUrgencyStatus(s.dueDate).code === 'DUE_SOON').length})
+              J-2
+            </button>
+            <button
+              onClick={() => setActiveUrgencyTab('JOUR_J')}
+              className={`flex-1 py-2 rounded-xl transition-all ${activeUrgencyTab === 'JOUR_J' ? 'bg-amber-600 text-white shadow' : 'text-emerald-200 hover:text-white'}`}
+            >
+              Jour J
+            </button>
+            <button
+              onClick={() => setActiveUrgencyTab('OVERDUE')}
+              className={`flex-1 py-2 rounded-xl transition-all ${activeUrgencyTab === 'OVERDUE' ? 'bg-red-600 text-white shadow' : 'text-emerald-200 hover:text-white'}`}
+            >
+              En Retard
             </button>
           </div>
 
-          {/* List of Pending Debt Cards */}
-          <div className="space-y-3 max-h-[620px] overflow-y-auto pr-1">
+          {/* Sales List */}
+          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
             {filteredSales.length === 0 ? (
-              <div className="p-8 text-center bg-white rounded-2rem border border-dashed border-emerald-200">
-                <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
-                <h4 className="font-bold text-sm text-[#064E3B]">Aucune créance dans cette catégorie !</h4>
-                <p className="text-xs text-gray-500 mt-1">Vos relances sont à jour.</p>
+              <div className="bg-white p-8 rounded-2rem border border-gray-200 text-center space-y-2">
+                <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
+                <p className="font-bold text-sm text-gray-800">Aucune créance dans cette catégorie !</p>
+                <p className="text-xs text-gray-500">Toutes vos relances sont à jour.</p>
               </div>
             ) : (
               filteredSales.map((sale) => {
-                const statusInfo = getDebtUrgencyStatus(sale.dueDate);
+                const urgency = getDebtUrgencyStatus(sale.dueDate);
+                const due = sale.remainingDue !== undefined ? sale.remainingDue : (sale.remainingBalance || 0);
                 const isSelected = selectedSale?.id === sale.id;
 
                 return (
                   <div
                     key={sale.id}
                     onClick={() => handleSelectSale(sale)}
-                    className={`p-4 rounded-2rem border cursor-pointer transition-all duration-200 ${
-                      isSelected
-                        ? 'bg-[#064E3B] text-white border-emerald-500 shadow-xl scale-[1.01]'
-                        : 'bg-white hover:bg-emerald-50/50 border-emerald-100 text-gray-900 shadow-sm'
+                    className={`p-4 rounded-2rem border cursor-pointer transition-all ${
+                      isSelected 
+                        ? 'bg-emerald-50 border-emerald-500 shadow-md ring-2 ring-emerald-500/20' 
+                        : 'bg-white border-gray-200 hover:border-emerald-300 shadow-sm'
                     }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h4 className={`font-bold text-sm ${isSelected ? 'text-white' : 'text-gray-900'}`}>
-                            {sale.clientName}
-                          </h4>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${statusInfo.badgeColor}`}>
-                            {statusInfo.label}
-                          </span>
-                        </div>
-                        <p className={`text-xs mt-0.5 ${isSelected ? 'text-emerald-300' : 'text-gray-500'}`}>
-                          📱 {sale.clientPhone}
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-[10px] text-red-500 font-bold block">Reste dû (Rouge)</span>
-                        <span className="font-bold text-sm text-red-500">
-                          {formatFCFA(sale.remainingDue !== undefined ? sale.remainingDue : (sale.remainingBalance || 0))}
-                        </span>
-                      </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold text-sm text-gray-900">{sale.clientName}</span>
+                      <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold border ${urgency.badgeColor}`}>
+                        {urgency.label}
+                      </span>
                     </div>
 
-                    <div className="mt-3 pt-2.5 border-t border-emerald-700/40 flex items-center justify-between text-[11px]">
-                      <span className={isSelected ? 'text-emerald-200' : 'text-gray-500'}>
-                        Échéance : {formatDateFr(sale.dueDate)}
-                      </span>
+                    <div className="flex items-center justify-between text-xs text-gray-600 font-medium">
+                      <span>Reste à payer : <strong className="text-red-600 font-extrabold text-sm">{formatFCFA(due)}</strong></span>
+                      <span className="text-[11px] text-gray-400">Échéance : {formatDateFr(sale.dueDate)}</span>
+                    </div>
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSelectSale(sale);
-                        }}
-                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center space-x-1 ${
-                          isSelected ? 'bg-white text-[#064E3B]' : 'bg-red-600 text-white hover:bg-red-700'
-                        }`}
-                      >
-                        <Sparkles className="w-3 h-3" />
-                        <span>Relancer WA</span>
-                      </button>
+                    <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px]">
+                      <span className="text-gray-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-emerald-600" />
+                        {sale.clientPhone || 'Pas de numéro'}
+                      </span>
+                      <span className="text-emerald-700 font-bold hover:underline">
+                        Sélectionner pour relancer →
+                      </span>
                     </div>
                   </div>
                 );
               })
             )}
           </div>
-
         </div>
 
-        {/* Right 6 Cols */}
-        <div className="lg:col-span-6">
+        {/* Right Column: AI Message Generator & Direct Sending */}
+        <div className="lg:col-span-7">
           {!selectedSale ? (
-            <div className="bg-white p-12 rounded-2rem border border-dashed border-emerald-200 text-center space-y-3">
-              <Bot className="w-12 h-12 text-emerald-400 mx-auto" />
-              <h3 className="text-base font-bold text-[#064E3B]">Sélectionnez un client à relancer</h3>
-              <p className="text-xs text-gray-500">
-                Cliquez sur une créance en rouge pour générer le message WhatsApp.
+            <div className="bg-white p-12 rounded-2rem border border-gray-200 text-center space-y-3">
+              <MessageSquareText className="w-12 h-12 text-gray-300 mx-auto animate-bounce" />
+              <h3 className="font-bold text-base text-gray-700">Sélectionnez une créance à relancer</h3>
+              <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                Choisissez un client débiteur dans la liste à gauche pour personnaliser et envoyer le message de rappel WhatsApp en 1-clic.
               </p>
             </div>
           ) : (
-            <div className="bg-white p-6 rounded-2rem border border-emerald-200 shadow-md space-y-5">
+            <div className="bg-white p-6 rounded-2rem border border-gray-200 shadow-lg space-y-5">
               
-              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              {/* Selected Sale Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
                 <div>
-                  <span className="text-[10px] text-emerald-700 uppercase font-bold">
-                    Destinataire WhatsApp
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Client Sélectionné
                   </span>
-                  <h3 className="font-bold text-lg text-gray-900 font-sans">
+                  <h3 className="font-extrabold text-lg text-gray-900 mt-1">
                     {selectedSale.clientName}
                   </h3>
-                  <p className="text-xs text-gray-500">
-                    N° WhatsApp : <strong className="text-gray-800">{formatCleanPhone(selectedSale.clientPhone)}</strong>
+                  <p className="text-xs text-gray-500 font-mono">
+                    WhatsApp: <strong>{selectedSale.clientPhone || 'N/A'}</strong> • Reste dû: <strong className="text-red-600">{formatFCFA(selectedSale.remainingDue)}</strong>
                   </p>
                 </div>
 
-                <div className="text-right">
-                  <span className="text-xs text-red-600 font-bold block">Solde en Rouge</span>
-                  <span className="font-bold text-lg text-red-600">
-                    {formatFCFA(selectedSale.remainingDue)}
-                  </span>
-                </div>
+                {onOpenCreditModal && (
+                  <button
+                    onClick={() => onOpenCreditModal(selectedSale)}
+                    className="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center space-x-1"
+                  >
+                    <span>Régler l'acompte</span>
+                  </button>
+                )}
               </div>
 
-              {/* Tone Selection Tabs */}
-              <div className="space-y-1.5">
-                <label className="block font-bold text-xs text-gray-700">
-                  Tonalité du Message IA :
-                </label>
+              {/* Tone Switcher */}
+              <div className="space-y-2">
+                <label className="block font-bold text-xs text-gray-700">Ton de la Relance WhatsApp :</label>
                 <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleToneChange('DOUX')}
-                    className={`py-2 px-3 rounded-2rem text-xs font-semibold transition-all border ${
-                      selectedTone === 'DOUX'
-                        ? 'bg-emerald-600 text-white border-emerald-700 font-bold shadow-sm'
-                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    😊 Doux (J-2)
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleToneChange('STANDARD')}
-                    className={`py-2 px-3 rounded-2rem text-xs font-semibold transition-all border ${
-                      selectedTone === 'STANDARD'
-                        ? 'bg-[#064E3B] text-white border-emerald-800 font-bold shadow-sm'
-                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    👔 Professionnel
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleToneChange('URGENT')}
-                    className={`py-2 px-3 rounded-2rem text-xs font-semibold transition-all border ${
-                      selectedTone === 'URGENT'
-                        ? 'bg-red-600 text-white border-red-700 font-bold shadow-sm'
-                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    ⚠️ Urgent (J+3)
-                  </button>
+                  {[
+                    { id: 'DOUX', label: '😊 Cordial / Amical' },
+                    { id: 'STANDARD', label: '⚡ Standard Pro' },
+                    { id: 'URGENT', label: '🚨 Ferme / Impératif' }
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => handleToneChange(t.id)}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all ${
+                        selectedTone === t.id
+                          ? 'bg-emerald-600 text-white border-emerald-700 shadow'
+                          : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               {/* Editable Message Box */}
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <label className="block font-bold text-xs text-gray-700">Aperçu & Édition du Message :</label>
+                  <label className="block font-bold text-xs text-gray-700">Aperçu du message :</label>
                   <button
                     onClick={handleCopy}
                     className="text-[11px] text-gray-500 hover:text-gray-800 flex items-center gap-1"
@@ -370,19 +326,15 @@ const WhatsappRelanceModule = ({
               </div>
 
               {/* 1-Click WhatsApp Direct Dispatch Button */}
-              <div className="space-y-2 pt-2 border-t border-gray-100">
+              <div className="pt-2 border-t border-gray-100">
                 <button
                   onClick={() => handleTriggerWhatsapp(selectedSale)}
-                  className="w-full py-3.5 rounded-2rem bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-xl flex items-center justify-center space-x-2 btn-magnetic"
+                  className="w-full py-3.5 rounded-2rem bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-xl flex items-center justify-center space-x-2 transition-all hover:scale-[1.01]"
                 >
                   <Send className="w-4.5 h-4.5" />
                   <span>Envoyer la Relance sur WhatsApp (1-Clic)</span>
                   <ExternalLink className="w-4 h-4 text-emerald-200" />
                 </button>
-
-                <p className="text-[11px] text-gray-400 text-center">
-                  Génère le lien direct <code className="bg-emerald-50 px-1 py-0.5 rounded text-emerald-800">https://wa.me/{formatCleanPhone(selectedSale.clientPhone)}</code> avec le message pré-rempli.
-                </p>
               </div>
 
             </div>
@@ -391,32 +343,60 @@ const WhatsappRelanceModule = ({
 
       </div>
 
-      {/* Webhook API Simulation Drawer */}
+      {/* Webhook & Historique des Relances WhatsApp */}
       {showWebhookLog && (
-        <div className="bg-[#064E3B] text-white p-6 rounded-2rem border border-emerald-600 space-y-4 text-xs shadow-2xl">
+        <div className="bg-[#064E3B] text-white p-6 rounded-2rem border border-emerald-600 space-y-4 text-xs shadow-2xl animate-in fade-in duration-200">
           <div className="flex items-center justify-between border-b border-emerald-700 pb-3">
             <h4 className="font-bold text-emerald-300 flex items-center gap-2">
               <Terminal className="w-4 h-4" />
-              Journal des Webhooks & API WhatsApp Cloud
+              Historique des Relances Envoyées ({waLogs.length})
             </h4>
-            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">
-              Service Actif
-            </span>
+            <div className="flex items-center gap-2">
+              {waLogs.length > 0 && onClearAllWaLogs && (
+                <button
+                  onClick={onClearAllWaLogs}
+                  className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-400/40 text-[11px] font-bold px-3 py-1 rounded-xl flex items-center gap-1 transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Vider tout l'historique</span>
+                </button>
+              )}
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">
+                Service Actif
+              </span>
+            </div>
           </div>
 
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
             {waLogs.length === 0 ? (
-              <p className="text-emerald-200/50 italic">Aucun log récent d'API.</p>
+              <p className="text-emerald-200/50 italic py-4 text-center">Aucun historique de relance enregistrée.</p>
             ) : (
               waLogs.map((log) => (
-                <div key={log.id} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-[11px] space-y-1">
-                  <div className="flex justify-between text-emerald-300 font-bold">
-                    <span>[POST] /api/v1/whatsapp/send-template</span>
-                    <span>{log.sentAt}</span>
+                <div key={log.id} className="p-3 rounded-xl bg-white/5 border border-white/10 text-[11px] space-y-1.5 flex items-start justify-between gap-3 group hover:bg-white/10 transition-all">
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center justify-between text-emerald-300 font-bold">
+                      <span>WhatsApp Direct → {log.clientName} ({log.phone})</span>
+                      <span className="text-emerald-200/70 font-mono">{log.sentAt}</span>
+                    </div>
+                    <p className="text-emerald-100/90 leading-relaxed font-sans">"{log.message}"</p>
+                    <span className="text-[10px] text-emerald-400 font-bold inline-block bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                      ENVOYÉ AVEC SUCCÈS
+                    </span>
                   </div>
-                  <p className="text-white">Client : {log.clientName} ({log.phone})</p>
-                  <p className="text-emerald-100/70 truncate">Payload : "{log.message}"</p>
-                  <span className="text-[10px] text-emerald-400 font-bold">STATUS: 200 OK (DELIVERED_TO_DEVICE)</span>
+
+                  {onDeleteWaLog && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Supprimer cette relance de l'historique pour ${log.clientName} ?`)) {
+                          onDeleteWaLog(log.id);
+                        }
+                      }}
+                      title="Supprimer cet historique"
+                      className="p-1.5 rounded-lg text-emerald-300/60 hover:text-red-300 hover:bg-red-500/20 transition-all flex-shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               ))
             )}

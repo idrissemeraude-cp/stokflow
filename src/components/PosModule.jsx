@@ -16,7 +16,8 @@ import {
   Scan,
   Receipt,
   Tag,
-  Smartphone
+  Smartphone,
+  History
 } from 'lucide-react';
 import { formatFCFA, formatDateFr } from '../utils/storage';
 import BarcodeScannerModal from './BarcodeScannerModal';
@@ -24,11 +25,14 @@ import BarcodeScannerModal from './BarcodeScannerModal';
 const PosModule = ({ 
   products = [], 
   clients = [], 
+  sales = [],
   onSaveSale, 
+  onDeleteSale,
   onSaveClient, 
   onOpenReceiptModal,
   setActiveTab 
 }) => {
+  const [isSalesHistoryOpen, setIsSalesHistoryOpen] = useState(false);
   // Shopping Cart State [{ product, qty, variant }]
   const [cart, setCart] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState('');
@@ -259,14 +263,22 @@ const PosModule = ({
 
         <div className="flex items-center space-x-2">
           <button
+            onClick={() => setIsSalesHistoryOpen(true)}
+            className="bg-[#064E3B] hover:bg-emerald-900 text-white text-xs font-bold px-4 py-2.5 rounded-2rem flex items-center space-x-1.5 shadow transition-all"
+          >
+            <History className="w-4 h-4 text-emerald-300" />
+            <span>Historique Ventes ({sales.length})</span>
+          </button>
+
+          <button
             onClick={() => setIsScannerOpen(true)}
             className="btn-magnetic bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold px-4 py-2.5 rounded-2rem flex items-center space-x-1.5 shadow-md shadow-emerald-600/20 transition-all"
           >
             <Scan className="w-4 h-4" />
-            <span>Scanner Code-Barres</span>
+            <span>Scanner</span>
           </button>
 
-          <span className="bg-emerald-100 text-emerald-800 text-xs font-mono font-bold px-3 py-1.5 rounded-2rem flex items-center gap-1.5">
+          <span className="bg-emerald-100 text-emerald-800 text-xs font-mono font-bold px-3 py-1.5 rounded-2rem hidden md:flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             Caisse Ouverte
           </span>
@@ -1017,6 +1029,91 @@ const PosModule = ({
               </button>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Sales History Modal */}
+      {isSalesHistoryOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-3xl max-h-[85vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
+            <div className="p-5 bg-[#064E3B] text-white flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <History className="w-5 h-5 text-emerald-300" />
+                <h3 className="font-bold text-base font-sans">
+                  Historique Complet des Ventes ({sales.length})
+                </h3>
+              </div>
+              <button 
+                onClick={() => setIsSalesHistoryOpen(false)}
+                className="p-1 rounded-full hover:bg-white/10 text-white/80 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-3 flex-1">
+              {sales.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <Receipt className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="font-bold text-sm">Aucune vente enregistrée pour le moment.</p>
+                </div>
+              ) : (
+                sales.map((sale) => (
+                  <div key={sale.id} className="p-4 rounded-2xl border border-gray-200 bg-white hover:border-emerald-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-mono text-xs font-bold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded">
+                          #{sale.id.replace('sale-', '').substring(0, 8)}
+                        </span>
+                        <span className="font-bold text-sm text-gray-900">{sale.clientName}</span>
+                        <span className="text-xs text-gray-400">• {formatDateFr(sale.createdAt)}</span>
+                      </div>
+
+                      <div className="text-xs text-gray-600 mt-1">
+                        Articles: <strong>{(sale.items || []).map(i => `${i.name} (${i.qty})`).join(', ')}</strong>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-3">
+                      <div className="text-right">
+                        <span className="font-extrabold text-emerald-700 text-sm block">
+                          {formatFCFA(sale.totalAmount)}
+                        </span>
+                        <span className="text-[10px] text-gray-400 uppercase font-semibold">
+                          {sale.paymentType === 'CASH' ? 'Comptant' : 'Crédit'}
+                        </span>
+                      </div>
+
+                      {onOpenReceiptModal && (
+                        <button
+                          onClick={() => {
+                            setIsSalesHistoryOpen(false);
+                            onOpenReceiptModal(sale);
+                          }}
+                          className="p-2 rounded-xl bg-gray-100 hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 transition-colors"
+                          title="Imprimer Reçu"
+                        >
+                          <Receipt className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {onDeleteSale && (
+                        <button
+                          onClick={() => {
+                            onDeleteSale(sale.id);
+                          }}
+                          className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 transition-colors"
+                          title="Supprimer cette vente"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
