@@ -1,9 +1,11 @@
 -- ==============================================================================
--- 🚀 SCHÉMA DE BASE DE DONNÉES POSTGRESQL / SUPABASE - STOCKFLOW PRO (FASOMODE)
+-- 🚀 SCHÉMA DE BASE DE DONNÉES POSTGRESQL / SUPABASE - STOCKFLOW PRO
 -- ==============================================================================
--- Exécutez ce script dans l'éditeur SQL de votre projet Supabase (SQL Editor).
--- Il crée les tables métier, la gestion des utilisateurs & profils (profiles),
--- les index, les politiques de sécurité (RLS) et active Supabase Realtime.
+-- Exécutez ce script dans l'Éditeur SQL (SQL Editor) de votre projet Supabase.
+-- URL : https://supabase.com/dashboard -> Choisissez votre projet -> SQL Editor
+-- Ce script est 100% IDEMPOTENT (vous pouvez l'exécuter autant de fois que voulu sans aucune erreur).
+-- Il crée les 9 tables métier, active le RLS avec accès complet, octroie les permissions
+-- et configure la synchronisation automatique Supabase Auth -> public.profiles.
 -- ==============================================================================
 
 -- 1. EXTENSIONS
@@ -161,9 +163,10 @@ VALUES ('default_store', 'StockFlow Pro', 'Gérant', '+22600000000', 'Ouagadougo
 ON CONFLICT (id) DO NOTHING;
 
 -- ==============================================================================
--- 🔒 SÉCURITÉ & ROW LEVEL SECURITY (RLS)
+-- 🔒 SÉCURITÉ & ROW LEVEL SECURITY (RLS) ET PERMISSIONS (IDEMPOTENT)
 -- ==============================================================================
 
+-- Activation RLS sur toutes les tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
@@ -174,7 +177,18 @@ ALTER TABLE public.cash_closings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.whatsapp_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.store_info ENABLE ROW LEVEL SECURITY;
 
--- Politiques d'accès complet (CRUD)
+-- Suppression préalable des politiques (évite l'erreur "policy already exists")
+DROP POLICY IF EXISTS "Acces total profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Acces total produits" ON public.products;
+DROP POLICY IF EXISTS "Acces total clients" ON public.clients;
+DROP POLICY IF EXISTS "Acces total ventes" ON public.sales;
+DROP POLICY IF EXISTS "Acces total paiements" ON public.payments;
+DROP POLICY IF EXISTS "Acces total depenses" ON public.expenses;
+DROP POLICY IF EXISTS "Acces total clotures" ON public.cash_closings;
+DROP POLICY IF EXISTS "Acces total logs_whatsapp" ON public.whatsapp_logs;
+DROP POLICY IF EXISTS "Acces total store_info" ON public.store_info;
+
+-- Création des Politiques d'accès complet (CRUD)
 CREATE POLICY "Acces total profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Acces total produits" ON public.products FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Acces total clients" ON public.clients FOR ALL USING (true) WITH CHECK (true);
@@ -184,6 +198,11 @@ CREATE POLICY "Acces total depenses" ON public.expenses FOR ALL USING (true) WIT
 CREATE POLICY "Acces total clotures" ON public.cash_closings FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Acces total logs_whatsapp" ON public.whatsapp_logs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Acces total store_info" ON public.store_info FOR ALL USING (true) WITH CHECK (true);
+
+-- Octroi des privilèges SQL complets aux rôles Supabase (anon, authenticated, service_role)
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated, service_role;
 
 -- ==============================================================================
 -- 🔄 SYNCHRONISATION AUTOMATIQUE SUPABASE AUTH -> PUBLIC.PROFILES

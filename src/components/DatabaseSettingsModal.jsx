@@ -256,7 +256,7 @@ export default function DatabaseSettingsModal({
             }`}
           >
             <Layers className="w-4 h-4" />
-            Schéma SQL (8 Tables)
+            Schéma SQL (9 Tables)
           </button>
         </div>
 
@@ -505,8 +505,8 @@ export default function DatabaseSettingsModal({
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">Script SQL PostgreSQL (8 Tables)</h3>
-                  <p className="text-xs text-slate-500">Contient : products, clients, sales, payments, expenses, cash_closings, whatsapp_logs, store_info</p>
+                  <h3 className="text-sm font-bold text-slate-800">Script SQL PostgreSQL (9 Tables Idempotent)</h3>
+                  <p className="text-xs text-slate-500">Contient : profiles, products, clients, sales, payments, expenses, cash_closings, whatsapp_logs, store_info</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <a

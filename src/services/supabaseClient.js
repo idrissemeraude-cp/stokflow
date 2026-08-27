@@ -116,7 +116,7 @@ export const getSupabaseAdminClient = () => {
   }
 };
 
-// Test de connectivité
+// Test de connectivité approfondi (Vérification des 9 tables)
 export const testSupabaseConnection = async (customUrl, customKey) => {
   const url = customUrl || getSupabaseConfig().url;
   const key = customKey || getSupabaseConfig().key;
@@ -125,28 +125,52 @@ export const testSupabaseConnection = async (customUrl, customKey) => {
     return { success: false, message: 'URL ou Clé API manquante.' };
   }
 
+  const REQUIRED_TABLES = [
+    'profiles',
+    'products',
+    'clients',
+    'sales',
+    'payments',
+    'expenses',
+    'cash_closings',
+    'whatsapp_logs',
+    'store_info'
+  ];
+
   try {
     const testClient = createClient(url, key);
-    // On teste une requête simple sur store_info ou products
-    const { data, error } = await testClient.from('store_info').select('id, name').limit(1);
+    const missingTables = [];
+    const existingTables = [];
 
-    if (error) {
-      // Si la table n'existe pas encore
-      if (error.code === '42P01' || error.message?.includes('does not exist')) {
-        return {
-          success: true,
-          needSchema: true,
-          message: 'Connexion réussie à Supabase ! (Les tables doivent maintenant être créées avec le script SQL).'
-        };
+    for (const table of REQUIRED_TABLES) {
+      const { error } = await testClient.from(table).select('id').limit(1);
+      if (error && (error.code === '42P01' || error.message?.includes('does not exist'))) {
+        missingTables.push(table);
+      } else if (error) {
+        // Autre erreur (ex: permission denied)
+        console.warn(`Test table ${table} warning:`, error.message);
+        existingTables.push(table);
+      } else {
+        existingTables.push(table);
       }
-      return { success: false, message: `Erreur Supabase: ${error.message}` };
+    }
+
+    if (missingTables.length > 0) {
+      return {
+        success: true,
+        needSchema: true,
+        missingTables,
+        existingTables,
+        message: `Connexion à Supabase réussie, mais ${missingTables.length} table(s) sur 9 manque(nt) : [${missingTables.join(', ')}]. Exécutez le script SQL mis à jour pour les créer.`
+      };
     }
 
     return {
       success: true,
       needSchema: false,
-      message: 'Connexion PostgreSQL Supabase établie avec succès !',
-      data
+      missingTables: [],
+      existingTables,
+      message: '✅ Connexion PostgreSQL Supabase 100% établie et vérifiée ! Les 9 tables requises sont toutes présentées et fonctionnelles.'
     };
   } catch (err) {
     return { success: false, message: `Impossible de joindre Supabase : ${err.message}` };

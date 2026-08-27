@@ -67,6 +67,10 @@ const PosModule = ({
   // Open Quick Sale Modal for an article
   const handleOpenQuickSale = (product, variant = null) => {
     if (product.stock <= 0) return;
+    if (!product.salePrice || product.salePrice <= 0) {
+      alert("Le prix de vente de cet article n'a pas encore été défini. Veuillez fixer son prix de vente dans le menu Stock.");
+      return;
+    }
     setQuickSaleProduct(product);
     setQuickSaleQty(1);
     setQuickSaleVariant(variant || (product.variants && product.variants.length > 0 ? product.variants[0] : null));
@@ -128,6 +132,10 @@ const PosModule = ({
   // Add item to cart (with optional variant)
   const handleAddToCart = (product, selectedVariant = null) => {
     if (product.stock <= 0) return;
+    if (!product.salePrice || product.salePrice <= 0) {
+      alert("Le prix de vente de cet article n'a pas encore été défini. Veuillez fixer son prix de vente dans le menu Stock.");
+      return;
+    }
 
     const variant = selectedVariant || (product.variants && product.variants.length > 0 ? product.variants[0] : null);
 
@@ -358,9 +366,15 @@ const PosModule = ({
                     )}
 
                     <div className="pt-2 mt-2 border-t border-gray-100 flex items-center justify-between gap-1">
-                      <span className="font-bold text-xs text-emerald-700 font-mono">
-                        {formatFCFA(product.salePrice)}
-                      </span>
+                      {product.salePrice > 0 ? (
+                        <span className="font-bold text-xs text-emerald-700 font-mono">
+                          {formatFCFA(product.salePrice)}
+                        </span>
+                      ) : (
+                        <span className="font-bold text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
+                          Prix à fixer
+                        </span>
+                      )}
                       
                       {!isOutOfStock ? (
                         <div className="flex items-center gap-1">

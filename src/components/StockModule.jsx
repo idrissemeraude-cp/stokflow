@@ -19,7 +19,8 @@ import {
   FileSpreadsheet,
   Barcode as BarcodeIcon,
   Layers,
-  Lock
+  Lock,
+  Tag
 } from 'lucide-react';
 import { formatFCFA } from '../utils/storage';
 
@@ -77,8 +78,8 @@ const StockModule = ({
       setFormData({
         name: product.name,
         category: product.category,
-        salePrice: product.salePrice,
-        purchasePrice: product.purchasePrice || 0,
+        salePrice: product.salePrice > 0 ? product.salePrice : '',
+        purchasePrice: product.purchasePrice || '',
         stock: product.stock,
         lowStockThreshold: product.lowStockThreshold || 2,
         barcode: product.barcode || `BF-${product.category.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-3)}`,
@@ -107,7 +108,7 @@ const StockModule = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.salePrice || formData.stock === '') return;
+    if (!formData.name.trim() || formData.stock === '') return;
 
     const variants = formData.variantsStr
       ? formData.variantsStr.split(',').map(v => v.trim()).filter(Boolean)
@@ -117,7 +118,7 @@ const StockModule = ({
       id: editingProduct ? editingProduct.id : `prod-${Date.now()}`,
       name: formData.name.trim(),
       category: formData.category,
-      salePrice: Number(formData.salePrice),
+      salePrice: formData.salePrice !== '' && formData.salePrice !== null ? Number(formData.salePrice) : 0,
       purchasePrice: Number(formData.purchasePrice || 0),
       stock: Number(formData.stock),
       lowStockThreshold: Number(formData.lowStockThreshold || 2),
@@ -319,9 +320,9 @@ const StockModule = ({
                       </td>
 
                       {/* Product Name, Code-barre & Variants */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 cursor-pointer" onClick={() => handleOpenModal(p)}>
                         <div>
-                          <p className="font-bold text-gray-900 font-sans leading-snug">
+                          <p className="font-bold text-gray-900 font-sans leading-snug hover:text-emerald-700 transition-colors">
                             {p.name}
                           </p>
                           <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
@@ -340,15 +341,29 @@ const StockModule = ({
                       </td>
 
                       {/* Category Pill */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 cursor-pointer" onClick={() => handleOpenModal(p)}>
                         <span className="bg-gray-100 border border-gray-200 text-gray-700 text-xs px-2.5 py-1 rounded-full font-medium">
                           {p.category}
                         </span>
                       </td>
 
                       {/* Sale Price */}
-                      <td className="py-3.5 px-4 text-right font-bold text-emerald-800">
-                        {formatFCFA(p.salePrice)}
+                      <td className="py-3.5 px-4 text-right cursor-pointer" onClick={() => handleOpenModal(p)}>
+                        {p.salePrice > 0 ? (
+                          <span className="font-extrabold text-emerald-800 font-mono">
+                            {formatFCFA(p.salePrice)}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleOpenModal(p); }}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-xl shadow-xs transition-all"
+                            title="Cliquer pour fixer le prix de vente"
+                          >
+                            <Tag className="w-3 h-3 text-amber-600" />
+                            <span>Fixer prix vente</span>
+                          </button>
+                        )}
                       </td>
 
                       {/* Purchase Price (Hidden for Cashier) */}
@@ -482,12 +497,12 @@ const StockModule = ({
                   key={p.id}
                   className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3 relative"
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between cursor-pointer" onClick={() => handleOpenModal(p)}>
                     <div>
                       <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 mb-1 inline-block">
                         {p.category}
                       </span>
-                      <h4 className="font-bold text-sm text-gray-900 leading-snug">
+                      <h4 className="font-bold text-sm text-gray-900 leading-snug hover:text-emerald-700">
                         {p.name}
                       </h4>
                       {p.barcode && (
@@ -498,10 +513,21 @@ const StockModule = ({
                     </div>
 
                     <div className="text-right">
-                      <span className="font-extrabold text-sm text-emerald-700 font-mono block">
-                        {formatFCFA(p.salePrice)}
-                      </span>
-                      <span className="text-[10px] text-gray-400">
+                      {p.salePrice > 0 ? (
+                        <span className="font-extrabold text-sm text-emerald-700 font-mono block">
+                          {formatFCFA(p.salePrice)}
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleOpenModal(p); }}
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-lg mb-1"
+                        >
+                          <Tag className="w-2.5 h-2.5 text-amber-600" />
+                          <span>Fixer prix vente</span>
+                        </button>
+                      )}
+                      <span className="text-[10px] text-gray-400 block">
                         Achat: {formatFCFA(p.purchasePrice)}
                       </span>
                     </div>
@@ -644,16 +670,15 @@ const StockModule = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-gray-700 mb-1">
-                    Prix Vente (FCFA) *
+                    Prix Vente (FCFA) {!editingProduct && <span className="text-amber-600 font-normal text-[10px] ml-1">(Optionnel)</span>}
                   </label>
                   <input
                     type="number"
                     min="0"
-                    required
-                    placeholder="ex: 25000"
+                    placeholder={editingProduct ? "ex: 25000" : "Optionnel (à fixer plus tard)"}
                     value={formData.salePrice}
                     onChange={(e) => setFormData({ ...formData, salePrice: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-emerald-300 rounded-2rem font-extrabold text-emerald-700 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-emerald-300 rounded-2rem font-extrabold text-emerald-700 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
@@ -667,10 +692,19 @@ const StockModule = ({
                     placeholder="ex: 15000"
                     value={formData.purchasePrice}
                     onChange={(e) => setFormData({ ...formData, purchasePrice: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-2rem focus:outline-none"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-2rem focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
+
+              {!editingProduct && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2rem text-emerald-800 text-[11px] flex items-center space-x-2">
+                  <Tag className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>
+                    <strong>Prix de vente optionnel :</strong> Vous pouvez enregistrer l'article directement avec le prix d'achat. Pour indiquer le prix de vente plus tard, il vous suffira de cliquer sur l'article dans la liste.
+                  </span>
+                </div>
+              )}
 
               {/* Barcode & Variants Row */}
               <div className="grid grid-cols-2 gap-3">
