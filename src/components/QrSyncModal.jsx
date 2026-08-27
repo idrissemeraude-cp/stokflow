@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
 import { 
   X, 
   Smartphone, 
   Check, 
   Copy, 
-  QrCode, 
+  QrCode as QrIcon, 
   Sparkles, 
   ShieldCheck, 
   Share2, 
@@ -24,40 +25,61 @@ const QrSyncModal = ({
   expenses = []
 }) => {
   const [copied, setCopied] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState('');
 
-  if (!isOpen) return null;
+  // Payload compact de synchronisation mobile (Produits, Stocks, Prix de Vente)
+  const compactProducts = (products || []).slice(0, 50).map(p => ({
+    id: p.id,
+    name: p.name,
+    category: p.category,
+    salePrice: p.salePrice,
+    purchasePrice: p.purchasePrice,
+    stock: p.stock,
+    lowStockThreshold: p.lowStockThreshold,
+    barcode: p.barcode
+  }));
 
-  // Construction du payload de synchronisation complet (Produits, Stocks, Prix, Ventes)
   const syncPayload = {
     user: currentUser || { ownerName: storeInfo?.ownerName || 'Gérant', storeName: storeInfo?.name || 'StockFlow Pro' },
     store: storeInfo || { name: 'StockFlow Pro', city: 'Ouagadougou' },
     config: supabaseConfig || {},
-    products: (products || []).map(p => ({
-      id: p.id,
-      name: p.name,
-      category: p.category,
-      salePrice: p.salePrice,
-      purchasePrice: p.purchasePrice,
-      stock: p.stock,
-      lowStockThreshold: p.lowStockThreshold,
-      barcode: p.barcode
-    })),
-    clients: clients || [],
-    sales: sales || [],
-    payments: payments || [],
-    expenses: expenses || [],
+    products: compactProducts,
+    clients: (clients || []).slice(0, 20),
+    sales: (sales || []).slice(0, 20),
+    payments: (payments || []).slice(0, 20),
+    expenses: (expenses || []).slice(0, 20),
     timestamp: Date.now()
   };
 
   const jsonString = JSON.stringify(syncPayload);
   const encodedPayload = btoa(unescape(encodeURIComponent(jsonString)));
 
-  // URL absolue vers laquelle pointe le QR Code
   const baseUrl = window.location.origin + window.location.pathname;
   const qrSyncUrl = `${baseUrl}?qr_sync=${encodedPayload}`;
 
-  // Image QR Code générée dynamiquement via l'API QRServer
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrSyncUrl)}&color=064E3B&bgcolor=FFFFFF&margin=2`;
+  // Génération 100% locale du QR Code via Canvas
+  useEffect(() => {
+    if (!isOpen) return;
+
+    QRCode.toDataURL(qrSyncUrl, {
+      margin: 2,
+      width: 320,
+      color: {
+        dark: '#064E3B',
+        light: '#FFFFFF'
+      }
+    })
+      .then(url => {
+        setQrDataUrl(url);
+      })
+      .catch(err => {
+        console.error('Erreur génération QR Code local:', err);
+        // Fallback QuickChart
+        setQrDataUrl(`https://quickchart.io/qr?text=${encodeURIComponent(qrSyncUrl)}&size=300`);
+      });
+  }, [isOpen, qrSyncUrl]);
+
+  if (!isOpen) return null;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(qrSyncUrl);
@@ -80,7 +102,7 @@ const QrSyncModal = ({
         {/* En-tête */}
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 rounded-2rem bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
-            <QrCode className="w-6 h-6" />
+            <QrIcon className="w-6 h-6" />
           </div>
           <div>
             <h2 className="text-xl font-extrabold text-gray-900 font-sans tracking-tight">
@@ -94,17 +116,18 @@ const QrSyncModal = ({
 
         {/* QR Code Container */}
         <div className="bg-gradient-to-br from-[#064E3B] to-teal-950 p-6 rounded-3rem text-center space-y-4 text-white shadow-inner">
-          <div className="inline-block p-4 bg-white rounded-2rem shadow-xl border-4 border-emerald-300">
-            <img 
-              src={qrImageUrl} 
-              alt="QR Code de synchronisation"
-              className="w-52 h-52 sm:w-60 sm:h-60 mx-auto object-contain rounded-xl"
-              onError={(e) => {
-                // Fallback local SVG si pas d'accès internet à l'API QRServer
-                e.target.onerror = null;
-                e.target.src = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(qrSyncUrl)}`;
-              }}
-            />
+          <div className="inline-block p-4 bg-white rounded-2rem shadow-xl border-4 border-emerald-300 min-h-[220px] min-w-[220px] flex items-center justify-center">
+            {qrDataUrl ? (
+              <img 
+                src={qrDataUrl} 
+                alt="QR Code de synchronisation"
+                className="w-52 h-52 sm:w-60 sm:h-60 mx-auto object-contain rounded-xl"
+              />
+            ) : (
+              <div className="text-emerald-800 text-xs font-bold animate-pulse p-8">
+                Génération du QR Code...
+              </div>
+            )}
           </div>
 
           <div>
@@ -128,7 +151,7 @@ const QrSyncModal = ({
             <li>Ouvrez l'<strong>appareil photo</strong> de votre téléphone (Android ou iPhone).</li>
             <li>Visez le <strong>QR Code</strong> ci-dessus sur l'écran de votre ordinateur.</li>
             <li>Appuyez sur le lien jaune/bleu qui apparaît pour ouvrir la boutique.</li>
-            <li><strong>Magie !</strong> Votre téléphone se connecte instantanément à votre compte sans aucun mot de passe.</li>
+            <li><strong>Magie !</strong> Votre téléphone se connecte instantanément et charge tous vos produits, prix et stocks !</li>
           </ol>
         </div>
 
