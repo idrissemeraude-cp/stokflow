@@ -24,7 +24,7 @@ import {
 const navItems = [
   { id: 'dashboard', label: 'Tableau de bord', shortLabel: 'Accueil', icon: LayoutDashboard },
   { id: 'pos', label: 'Caisse & Vente POS', shortLabel: 'Caisse', icon: ShoppingCart },
-  { id: 'stock', label: 'Gestion du Stock', shortLabel: 'Stock', icon: Package, badgeKey: 'lowStock' },
+  { id: 'stock', label: 'Gestion du Stock', shortLabel: 'Stock', icon: Package },
   { id: 'expenses', label: 'Dépenses & Charges', shortLabel: 'Dépenses', icon: TrendingDown },
   { id: 'closing', label: 'Clôture de Caisse (Z)', shortLabel: 'Clôture', icon: Lock },
   { id: 'clients', label: 'Gestion des Clients', shortLabel: 'Clients', icon: Users },
@@ -47,7 +47,7 @@ const Navigation = ({
   const primaryMobileTabs = [
     { id: 'dashboard', label: 'Accueil', icon: LayoutDashboard },
     { id: 'pos', label: 'Caisse', icon: ShoppingCart, isPosPill: true },
-    { id: 'stock', label: 'Stock', icon: Package, badgeKey: 'lowStock' },
+    { id: 'stock', label: 'Stock', icon: Package },
     { id: 'clients', label: 'Clients', icon: Users },
   ];
 
@@ -104,27 +104,13 @@ const Navigation = ({
                   {/* Badges */}
                   {!isCollapsed ? (
                     <>
-                      {item.badgeKey === 'lowStock' && lowStockCount > 0 && (
-                        <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3" />
-                          {lowStockCount}
-                        </span>
-                      )}
                       {item.badgeKey === 'pendingDebt' && pendingRelancesCount > 0 && (
                         <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
                           {pendingRelancesCount}
                         </span>
                       )}
                     </>
-                  ) : (
-                    <>
-                      {item.badgeKey === 'lowStock' && lowStockCount > 0 && (
-                        <span className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-[#064E3B]">
-                          {lowStockCount}
-                        </span>
-                      )}
-                    </>
-                  )}
+                  ) : null}
 
                   {/* Tooltip on hover in collapsed mode */}
                   {isCollapsed && (
@@ -213,12 +199,7 @@ const Navigation = ({
                   {tab.label}
                 </span>
 
-                {/* Mobile Badges */}
-                {tab.badgeKey === 'lowStock' && lowStockCount > 0 && (
-                  <span className="absolute top-0 right-2 bg-red-600 text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center border-2 border-[#064E3B]">
-                    {lowStockCount}
-                  </span>
-                )}
+
               </button>
             );
           })}

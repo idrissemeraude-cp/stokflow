@@ -81,19 +81,6 @@ const DashboardModule = ({
       icon: DollarSign,
       iconBg: 'bg-emerald-50 text-emerald-600',
       date: formatDateFr(p.date)
-    })),
-    ...products.filter(p => p.stock <= p.lowStockThreshold).map(p => ({
-      id: `m-stock-${p.id}`,
-      type: 'STOCK_ALERT',
-      title: `Stock Bas : ${p.name}`,
-      subtitle: `Reste ${p.stock} unité(s) en boutique`,
-      amount: `${p.stock} restant`,
-      amountColor: 'text-red-600 font-bold',
-      badge: 'Alerte Stock',
-      badgeColor: 'bg-red-100 text-red-700',
-      icon: AlertTriangle,
-      iconBg: 'bg-red-50 text-red-600',
-      date: 'Aujourd\'hui'
     }))
   ].slice(0, 5);
 
@@ -185,8 +172,8 @@ const DashboardModule = ({
         </div>
       </div>
 
-      {/* 4 KPI Top Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 3 KPI Top Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* KPI 1 : Recettes Totales */}
         <div className="bg-white p-5 rounded-2rem border border-emerald-100 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
@@ -211,28 +198,6 @@ const DashboardModule = ({
                 0 encaissement pour l'instant
               </span>
             )}
-          </div>
-        </div>
-
-        {/* KPI 2 : Alertes Stock Bas */}
-        <div 
-          onClick={() => setActiveTab('stock')}
-          className="bg-white p-5 rounded-2rem border border-red-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-red-700 uppercase font-bold">Alertes Stock Bas (Rouge)</span>
-            <div className="w-9 h-9 rounded-full bg-red-50 text-red-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-red-600 mt-2">
-            {lowStockProducts.length} <span className="text-sm font-normal text-gray-500">article(s)</span>
-          </p>
-          <div className="flex items-center space-x-1.5 mt-2">
-            <span className="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-              {lowStockProducts.length > 0 ? 'Attention requise' : 'Stock optimal'}
-            </span>
-            <span className="text-xs text-gray-400 group-hover:text-red-600 transition-colors">Voir stock &rarr;</span>
           </div>
         </div>
 
