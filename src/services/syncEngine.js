@@ -101,9 +101,12 @@ class SyncEngine {
     }
 
     try {
-      // Test de ping
-      const { error } = await client.from('store_info').select('id').limit(1);
-      if (error && error.code !== '42P01') {
+      // Test de ping avec délai d'attente maximum de 2 secondes pour éviter tout blocage ou moulinage
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Network timeout')), 2000));
+      const pingPromise = client.from('store_info').select('id').limit(1);
+
+      const res = await Promise.race([pingPromise, timeoutPromise]);
+      if (res?.error && res?.error?.code !== '42P01') {
         this.status = 'ERROR';
         this.notify();
         return;
@@ -120,7 +123,7 @@ class SyncEngine {
       // Initialiser les écouteurs Realtime
       this.setupRealtimeListeners(client);
     } catch {
-      this.status = 'ERROR';
+      this.status = 'OFFLINE';
       this.notify();
     }
   }

@@ -20,6 +20,7 @@ import RoleSwitcherModal from './components/RoleSwitcherModal';
 import SupportModal from './components/SupportModal';
 import DatabaseSettingsModal from './components/DatabaseSettingsModal';
 import UsersModal from './components/UsersModal';
+import QrSyncModal from './components/QrSyncModal';
 
 import {
   loadStoredData,
@@ -38,7 +39,7 @@ import {
 } from './utils/storage';
 import { syncEngine } from './services/syncEngine';
 import { dbService, mappers } from './services/dbService';
-import { getSupabaseConfig, getSupabaseClient } from './services/supabaseClient';
+import { getSupabaseConfig, getSupabaseClient, saveSupabaseConfig } from './services/supabaseClient';
 
 export function App() {
   // Global View State ('landing' | 'dashboard') - Persisté sur rafraîchissement
@@ -108,7 +109,36 @@ export function App() {
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
   const [isDatabaseModalOpen, setIsDatabaseModalOpen] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [syncState, setSyncState] = useState(() => syncEngine.getState());
+
+  // Écouteur de QR Code Scan (?qr_sync=...) pour connexion automatique du téléphone
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const qrSyncData = urlParams.get('qr_sync');
+    if (qrSyncData) {
+      try {
+        const jsonStr = decodeURIComponent(escape(atob(qrSyncData)));
+        const decoded = JSON.parse(jsonStr);
+        if (decoded.user) {
+          setCurrentUser(decoded.user);
+          localStorage.setItem('stockflow_user', JSON.stringify(decoded.user));
+        }
+        if (decoded.store) {
+          setStoreInfo(decoded.store);
+          saveStoreInfo(decoded.store);
+        }
+        if (decoded.config && decoded.config.url && decoded.config.key) {
+          saveSupabaseConfig(decoded.config.url, decoded.config.key, true);
+        }
+        setCurrentView('dashboard');
+        alert(`✅ Connexion réussie ! Votre téléphone est désormais connecté à la boutique "${decoded.store?.name || 'StockFlow Pro'}".`);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (err) {
+        console.error('Erreur décodage QR Sync:', err);
+      }
+    }
+  }, []);
 
   // Cloud Import Handler
   const handleCloudDataImported = (cloudData) => {
@@ -746,6 +776,7 @@ export function App() {
             onOpenCsvModal={() => setIsCsvModalOpen(true)}
             onOpenDatabaseModal={() => setIsDatabaseModalOpen(true)}
             onOpenUsersModal={() => setIsUsersModalOpen(true)}
+            onOpenQrModal={() => setIsQrModalOpen(true)}
             userCount={profiles.length || 1}
             syncState={syncState}
             isSidebarCollapsed={isSidebarCollapsed}
@@ -763,6 +794,7 @@ export function App() {
               isCollapsed={isSidebarCollapsed}
               setIsCollapsed={setIsSidebarCollapsed}
               onOpenSupportModal={() => setIsSupportModalOpen(true)}
+              onOpenQrModal={() => setIsQrModalOpen(true)}
             />
 
             <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-full overflow-x-hidden pb-20 lg:pb-8">
@@ -929,6 +961,15 @@ export function App() {
       <SupportModal
         isOpen={isSupportModalOpen}
         onClose={() => setIsSupportModalOpen(false)}
+      />
+
+      {/* QR Code Phone Sync Modal */}
+      <QrSyncModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+        currentUser={currentUser}
+        storeInfo={storeInfo}
+        supabaseConfig={getSupabaseConfig()}
       />
 
       {/* Database & Cloud Settings Modal */}

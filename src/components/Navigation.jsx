@@ -18,7 +18,8 @@ import {
   Phone,
   Headphones,
   X,
-  MoreHorizontal
+  MoreHorizontal,
+  QrCode
 } from 'lucide-react';
 
 const navItems = [
@@ -39,7 +40,8 @@ const Navigation = ({
   pendingRelancesCount,
   isCollapsed = false,
   setIsCollapsed,
-  onOpenSupportModal
+  onOpenSupportModal,
+  onOpenQrModal
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -132,6 +134,18 @@ const Navigation = ({
                 className="w-full flex items-center justify-center py-2 text-emerald-200 hover:text-white rounded-xl hover:bg-white/10 transition-colors"
               >
                 <Headphones className="w-5 h-5 text-emerald-300" />
+              </button>
+            )}
+
+            {/* Bouton Scan QR Code Téléphone */}
+            {onOpenQrModal && (
+              <button 
+                onClick={onOpenQrModal}
+                title="Connecter téléphone via QR Code"
+                className={`w-full flex items-center ${isCollapsed ? 'justify-center py-2' : 'space-x-3 px-3 py-2 text-xs'} bg-emerald-500/20 text-emerald-200 hover:text-white rounded-xl border border-emerald-400/40 transition-colors font-bold`}
+              >
+                <QrCode className="w-4 h-4 text-emerald-300 flex-shrink-0" />
+                {!isCollapsed && <span>QR Code Mobile</span>}
               </button>
             )}
 

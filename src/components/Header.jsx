@@ -14,7 +14,9 @@ import {
   ShieldCheck,
   FileSpreadsheet,
   Menu,
-  SlidersHorizontal
+  SlidersHorizontal,
+  QrCode,
+  Smartphone
 } from 'lucide-react';
 import { formatFCFA } from '../utils/storage';
 
@@ -31,6 +33,7 @@ const Header = ({
   userRole = 'ADMIN',
   onOpenRoleModal,
   onOpenCsvModal,
+  onOpenQrModal,
   isSidebarCollapsed,
   onToggleSidebar,
   onOpenDatabaseModal,
@@ -108,7 +111,15 @@ const Header = ({
 
 
 
-          {/* Import / Export CSV */}
+          {/* QR Code Scan Téléphone */}
+          <button
+            onClick={onOpenQrModal}
+            title="Connecter votre téléphone via QR Code"
+            className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 hover:text-white px-3 py-1.5 rounded-2xl text-xs flex items-center space-x-1.5 transition-all border border-emerald-400/40 font-bold"
+          >
+            <QrCode className="w-4 h-4 text-emerald-300" />
+            <span className="hidden sm:inline">QR Code Mobile</span>
+          </button>
           <button
             onClick={onOpenCsvModal}
             title="Importation / Exportation Excel & CSV"
