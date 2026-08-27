@@ -21,11 +21,12 @@ class ErrorBoundary extends React.Component {
   };
 
   handleResetStorage = () => {
-    if (window.confirm("Voulez-vous réinitialiser les données d'affichage locales pour débloquer l'application ? Vos données Supabase restent sécurisées.")) {
+    try {
       localStorage.removeItem('stockflow_current_view');
+      localStorage.removeItem('stockflow_active_tab');
       localStorage.removeItem('stockflow_user');
-      window.location.href = '/';
-    }
+    } catch (_) {}
+    window.location.href = '/';
   };
 
   render() {
@@ -41,9 +42,15 @@ class ErrorBoundary extends React.Component {
               StockFlow Pro
             </h1>
             
-            <p className="text-xs text-gray-600 mb-6 leading-relaxed">
-              Un problème d'affichage temporaire a été détecté. Vos données Supabase en ligne sont en sécurité.
+            <p className="text-xs text-gray-600 mb-4 leading-relaxed">
+              Un problème d'affichage local a été détecté. Vos données Supabase restent sécurisées.
             </p>
+
+            {this.state.error?.message && (
+              <p className="text-[11px] text-red-600 font-mono bg-red-50 p-2 rounded-xl mb-4 text-left overflow-x-auto">
+                Erreur: {this.state.error.message}
+              </p>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-3">
               <button
@@ -51,15 +58,15 @@ class ErrorBoundary extends React.Component {
                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all"
               >
                 <RefreshCw className="w-4 h-4" />
-                <span>Recharger l'Application</span>
+                <span>Recharger</span>
               </button>
 
               <button
                 onClick={this.handleResetStorage}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 border border-gray-300 transition-all"
+                className="flex-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 border border-emerald-300 transition-all"
               >
                 <Home className="w-4 h-4 text-emerald-700" />
-                <span>Accueil / Réinitialiser</span>
+                <span>Réinitialiser & Ouvrir</span>
               </button>
             </div>
           </div>

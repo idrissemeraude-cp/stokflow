@@ -21,9 +21,9 @@ import {
 import { formatFCFA } from '../utils/storage';
 
 const Header = ({ 
-  storeInfo, 
-  lowStockCount, 
-  totalPendingCredit, 
+  storeInfo = {}, 
+  lowStockCount = 0, 
+  totalPendingCredit = 0, 
   onResetData, 
   onExportData, 
   activeTab, 
@@ -34,7 +34,7 @@ const Header = ({
   onOpenRoleModal,
   onOpenCsvModal,
   onOpenQrModal,
-  isSidebarCollapsed,
+  isSidebarCollapsed = false,
   onToggleSidebar,
   onOpenDatabaseModal,
   onOpenUsersModal,
@@ -58,7 +58,7 @@ const Header = ({
             <Menu className="w-4.5 h-4.5" />
           </button>
 
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab && setActiveTab('dashboard')}>
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-500/20 border border-emerald-300">
               <ShoppingBag className="w-5 h-5 text-white font-bold" />
             </div>
@@ -69,11 +69,11 @@ const Header = ({
                 </h1>
                 <span className="bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  {storeInfo.name || 'Boutique'}
+                  {storeInfo?.name || 'StockFlow Pro'}
                 </span>
               </div>
               <p className="text-xs text-emerald-100/70 hidden sm:block">
-                {storeInfo.city} • Caisse & Relances WhatsApp
+                {storeInfo?.city || 'Ouagadougou, Burkina Faso'} • Caisse & Relances WhatsApp
               </p>
             </div>
           </div>
