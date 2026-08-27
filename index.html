@@ -17,15 +17,28 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="StockFlow Pro" />
-    <link rel="manifest" href="/manifest.json" />
     
     <!-- Google Fonts (Inter Sans-Serif Basique) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <script>
+      // Nettoyage immédiat de tous les Service Workers et Caches pour éliminer tout écran blanc
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let r of registrations) { r.unregister(); }
+        }).catch(function(){});
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (let name of names) { caches.delete(name); }
+        }).catch(function(){});
+      }
+    </script>
   </head>
   <body class="bg-[#F0FDF4] text-[#064E3B] font-sans antialiased overflow-x-hidden">
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.jsx" onerror="setTimeout(function(){ window.location.reload(); }, 1200);"></script>
   </body>
 </html>
