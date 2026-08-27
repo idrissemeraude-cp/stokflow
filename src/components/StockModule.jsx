@@ -365,14 +365,10 @@ const StockModule = ({
                           <span className={`text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 ${
                             isOut
                               ? 'bg-red-100 text-red-700 border border-red-200'
-                              : isLow
-                              ? 'bg-red-100 text-red-800 border border-red-200'
                               : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                           }`}>
                             {isOut ? (
-                              <>Rupture ({p.stock})</>
-                            ) : isLow ? (
-                              <><AlertTriangle className="w-3 h-3 text-red-600" /> Stock bas ({p.stock})</>
+                              <>Rupture (0)</>
                             ) : (
                               <>En stock ({p.stock})</>
                             )}
@@ -520,11 +516,9 @@ const StockModule = ({
                       <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
                         isOut 
                           ? 'bg-red-100 text-red-700 border border-red-200' 
-                          : isLow 
-                          ? 'bg-amber-100 text-amber-800 border border-amber-200' 
                           : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                       }`}>
-                        {isOut ? 'Rupture (0)' : isLow ? `Stock bas (${p.stock})` : `En stock (${p.stock})`}
+                        {isOut ? 'Rupture (0)' : `En stock (${p.stock})`}
                       </span>
                     </div>
 

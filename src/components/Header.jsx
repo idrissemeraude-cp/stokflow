@@ -106,18 +106,7 @@ const Header = ({
             <span>{userRole === 'ADMIN' ? '👑 Gérant' : '👤 Caissier'}</span>
           </button>
 
-          {/* Alertes Stock Bas Pill (Red) */}
-          <div 
-            onClick={() => setActiveTab('stock')}
-            className={`hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-2xl cursor-pointer transition-all ${
-              lowStockCount > 0 
-                ? 'bg-red-500/20 border border-red-400 text-red-200 hover:bg-red-500/30' 
-                : 'bg-white/10 border border-white/20 text-emerald-100'
-            }`}
-          >
-            <AlertTriangle className={`w-4 h-4 ${lowStockCount > 0 ? 'text-red-300 animate-bounce' : 'text-emerald-200/60'}`} />
-            <span className="text-xs font-semibold">Stock bas : <strong>{lowStockCount}</strong></span>
-          </div>
+
 
           {/* Import / Export CSV */}
           <button
