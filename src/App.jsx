@@ -123,7 +123,7 @@ export function App() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [syncState, setSyncState] = useState(() => syncEngine.getState());
 
-  // Écouteur de QR Code Scan (?qr_sync=...) pour connexion automatique du téléphone
+  // Écouteur de QR Code Scan (?qr_sync=...) pour connexion automatique et transfert de données vers le téléphone
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const qrSyncData = urlParams.get('qr_sync');
@@ -131,6 +131,7 @@ export function App() {
       try {
         const jsonStr = decodeURIComponent(escape(atob(qrSyncData)));
         const decoded = JSON.parse(jsonStr);
+
         if (decoded.user) {
           setCurrentUser(decoded.user);
           localStorage.setItem('stockflow_user', JSON.stringify(decoded.user));
@@ -139,11 +140,33 @@ export function App() {
           setStoreInfo(decoded.store);
           saveStoreInfo(decoded.store);
         }
+        if (decoded.products && Array.isArray(decoded.products) && decoded.products.length > 0) {
+          setProducts(decoded.products);
+          saveProducts(decoded.products);
+        }
+        if (decoded.clients && Array.isArray(decoded.clients)) {
+          setClients(decoded.clients);
+          saveClients(decoded.clients);
+        }
+        if (decoded.sales && Array.isArray(decoded.sales)) {
+          setSales(decoded.sales);
+          saveSales(decoded.sales);
+        }
+        if (decoded.payments && Array.isArray(decoded.payments)) {
+          setPayments(decoded.payments);
+          savePayments(decoded.payments);
+        }
+        if (decoded.expenses && Array.isArray(decoded.expenses)) {
+          setExpenses(decoded.expenses);
+          saveExpenses(decoded.expenses);
+        }
         if (decoded.config && decoded.config.url && decoded.config.key) {
           saveSupabaseConfig(decoded.config.url, decoded.config.key, true);
         }
+
         setCurrentView('dashboard');
-        alert(`✅ Connexion réussie ! Votre téléphone est désormais connecté à la boutique "${decoded.store?.name || 'StockFlow Pro'}".`);
+        localStorage.setItem('stockflow_current_view', 'dashboard');
+        alert(`✅ Connexion & Synchronisation réussies ! Votre téléphone a chargé l'ensemble du catalogue et des ventes de "${decoded.store?.name || 'StockFlow Pro'}".`);
         window.history.replaceState({}, document.title, window.location.pathname);
       } catch (err) {
         console.error('Erreur décodage QR Sync:', err);
@@ -1098,6 +1121,11 @@ export function App() {
         currentUser={currentUser}
         storeInfo={storeInfo}
         supabaseConfig={getSupabaseConfig()}
+        products={products}
+        clients={clients}
+        sales={sales}
+        payments={payments}
+        expenses={expenses}
       />
 
       {/* Database & Cloud Settings Modal */}

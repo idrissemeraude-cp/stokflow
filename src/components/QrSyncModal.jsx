@@ -11,16 +11,41 @@ import {
   Store
 } from 'lucide-react';
 
-const QrSyncModal = ({ isOpen, onClose, currentUser, storeInfo, supabaseConfig }) => {
+const QrSyncModal = ({ 
+  isOpen, 
+  onClose, 
+  currentUser, 
+  storeInfo, 
+  supabaseConfig,
+  products = [],
+  clients = [],
+  sales = [],
+  payments = [],
+  expenses = []
+}) => {
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
-  // Construction du payload de synchronisation
+  // Construction du payload de synchronisation complet (Produits, Stocks, Prix, Ventes)
   const syncPayload = {
     user: currentUser || { ownerName: storeInfo?.ownerName || 'Gérant', storeName: storeInfo?.name || 'StockFlow Pro' },
     store: storeInfo || { name: 'StockFlow Pro', city: 'Ouagadougou' },
     config: supabaseConfig || {},
+    products: (products || []).map(p => ({
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      salePrice: p.salePrice,
+      purchasePrice: p.purchasePrice,
+      stock: p.stock,
+      lowStockThreshold: p.lowStockThreshold,
+      barcode: p.barcode
+    })),
+    clients: clients || [],
+    sales: sales || [],
+    payments: payments || [],
+    expenses: expenses || [],
     timestamp: Date.now()
   };
 
