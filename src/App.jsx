@@ -44,10 +44,14 @@ import { getSupabaseConfig, getSupabaseClient, saveSupabaseConfig } from './serv
 export function App() {
   // Global View State ('landing' | 'dashboard') - Persisté sur rafraîchissement
   const [currentView, setCurrentView] = useState(() => {
-    const savedView = localStorage.getItem('stockflow_current_view');
-    const savedUser = localStorage.getItem('stockflow_user');
-    if (savedView) return savedView;
-    return savedUser ? 'dashboard' : 'landing';
+    try {
+      const savedView = localStorage.getItem('stockflow_current_view');
+      const savedUser = localStorage.getItem('stockflow_user');
+      if (savedView === 'dashboard' || savedView === 'landing') return savedView;
+      return (savedUser && savedUser !== 'null' && savedUser !== 'undefined') ? 'dashboard' : 'landing';
+    } catch {
+      return 'landing';
+    }
   });
 
   // Auth Modal State ('login' | 'register' | null)
@@ -55,8 +59,15 @@ export function App() {
 
   // Authenticated User State
   const [currentUser, setCurrentUser] = useState(() => {
-    const savedUser = localStorage.getItem('stockflow_user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    try {
+      const savedUser = localStorage.getItem('stockflow_user');
+      if (!savedUser || savedUser === 'undefined' || savedUser === 'null') return null;
+      return JSON.parse(savedUser);
+    } catch (e) {
+      console.warn("Cleaned corrupted stockflow_user:", e);
+      localStorage.removeItem('stockflow_user');
+      return null;
+    }
   });
 
   // Navigation State inside App ('dashboard' | 'pos' | 'stock' | 'expenses' | 'closing' | 'clients' | 'relances' | 'analytics')
